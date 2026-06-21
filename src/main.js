@@ -6,15 +6,14 @@ const SECTIONS = [
   {
     id: 's1',
     num: 1,
-    title: 'Pre-flight Gates',
-    short: 'Gates',
+    title: 'Smoke Setup',
+    short: 'Setup',
     items: [
-      { id: 'p1', text: 'PR #7 / preview build is deployed and active on the test environment (Vercel preview URL confirmed).' },
-      { id: 'p2', text: '`PASSIVE_CLOSE_LIVE = false` confirmed in the deployed build (Vercel env vars or feature-flag config).' },
-      { id: 'p3', text: '`HYBRID_AUTO_CLOSE_LIVE = true` confirmed in the deployed build.' },
-      { id: 'p4', text: 'Hybrid access is active for the test user: `state.hybridAccessConfirmed === true` - visible via widget console log or monitor panel header.' },
-      { id: 'p5', text: 'Monitor panel loads without error - no red banners, no uncaught exceptions in browser console.' },
-      { id: 'p6', text: 'Precision panel correctly handles an RPC failure - does NOT show a false empty-state; error state is visually distinct from genuine no-data.' },
+      { id: 'p1', text: 'Smoke environment or Vercel preview URL is open and recorded in Smoke Session.' },
+      { id: 'p2', text: 'Hybrid trial access is detected for the scoped tester: `state.hybridAccessConfirmed === true` is visible via widget console log or monitor panel header.' },
+      { id: 'p3', text: 'Broad non-hybrid bookmarklet remains manual-first; passive case-start remains off.' },
+      { id: 'p4', text: 'Monitor panel loads without error - no red banners, no uncaught exceptions in browser console.' },
+      { id: 'p5', text: 'Precision panel correctly handles an RPC failure - does NOT show a false empty-state; error state is visually distinct from genuine no-data.' },
     ],
   },
   {
@@ -46,12 +45,24 @@ const SECTIONS = [
       { id: 'rc5', text: 'Supabase check: same `case_events` row has `source = "passive_auto"`.' },
       { id: 'rc6', text: 'Linked row in `case_outcome_observations` reflects the passive auto-close: observation is linked to the passive `case_events` row, and the current auto-close marker is populated, such as `auto_closed_at` or the current passive-auto marker field.' },
       { id: 'rc7', text: 'Monitor panel reflects the passive close for the reclassified case.' },
-      { id: 'rc8', text: 'Complete-during-reclassification guard holds: `reclass_in_progress_at_complete` prevents an unsafe passive auto-close while reclassification is still in progress.' },
     ],
   },
   {
     id: 's4',
     num: 4,
+    title: 'Complete-during-reclassification Guard',
+    short: 'Complete guard',
+    items: [
+      { id: 'cg1', text: 'Manually start and track a case that can hit Complete while reclassification handling is in progress.' },
+      { id: 'cg2', text: 'Trigger the Complete-during-reclassification path using the live widget/Salesforce workflow or the approved smoke repro path.' },
+      { id: 'cg3', text: '`reclass_in_progress_at_complete` guard blocks unsafe passive auto-close while reclassification is still in progress.' },
+      { id: 'cg4', text: 'No duplicate or incorrect production `case_events` close row is created during the guarded window.' },
+      { id: 'cg5', text: 'Widget and monitor state remain coherent after the reclassification path settles.' },
+    ],
+  },
+  {
+    id: 's5',
+    num: 5,
     title: 'Low-confidence / Shadow-only Smoke',
     short: 'Shadow',
     items: [
@@ -62,8 +73,8 @@ const SECTIONS = [
     ],
   },
   {
-    id: 's5',
-    num: 5,
+    id: 's6',
+    num: 6,
     title: 'No-tracked-case Safety Smoke',
     short: 'Safety',
     items: [
@@ -73,8 +84,8 @@ const SECTIONS = [
     ],
   },
   {
-    id: 's6',
-    num: 6,
+    id: 's7',
+    num: 7,
     title: 'Regression Checks',
     short: 'Regression',
     items: [
@@ -113,6 +124,38 @@ const FILTERS = [
   { id: 'open', label: 'Open' },
   { id: 'attention', label: 'Needs attention' },
   { id: 'complete', label: 'Passed' },
+];
+
+const AUDIT_OPTS = [
+  {
+    id: 'not-run',
+    cls: 'audit-not-run',
+    label: 'Not run',
+    desc: 'Fresh clone audit has not been recorded.',
+  },
+  {
+    id: 'ready',
+    cls: 'audit-ready',
+    label: 'READY FOR DAVIS-ONLY SMOKE',
+    desc: 'Fresh clone audit returned a ready verdict.',
+  },
+  {
+    id: 'hold',
+    cls: 'audit-hold',
+    label: 'HOLD - BLOCKER FOUND',
+    desc: 'Fresh clone audit found a blocker.',
+  },
+];
+
+const RUN_FIELDS = [
+  { key: 'tester', label: 'Tester', placeholder: 'Davis / tester name' },
+  { key: 'environmentUrl', label: 'Environment URL', placeholder: 'Vercel preview or deployed URL' },
+];
+
+const ITEM_FIELD_DEFS = [
+  { key: 'caseNumber', label: 'Case #', placeholder: 'CT case number' },
+  { key: 'evidenceLink', label: 'Evidence link', placeholder: 'Screenshot, admin, PR, or log link' },
+  { key: 'testedAt', label: 'Timestamp', placeholder: 'Auto-filled on status change' },
 ];
 
 const SMOKE_RECORD_SECTIONS = [
@@ -209,13 +252,30 @@ let deferredInstallPrompt = null;
 let state = loadState();
 
 function defaultState() {
-  return { items: {}, decision: { verdict: null, notes: '' }, savedAt: null };
+  return {
+    items: {},
+    audit: { verdict: 'not-run', notes: '' },
+    run: { tester: '', environmentUrl: '' },
+    decision: { verdict: null, notes: '' },
+    savedAt: null,
+  };
 }
 
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...defaultState(), ...JSON.parse(raw) };
+    if (raw) {
+      const defaults = defaultState();
+      const parsed = JSON.parse(raw);
+      return {
+        ...defaults,
+        ...parsed,
+        items: parsed.items || defaults.items,
+        audit: { ...defaults.audit, ...(parsed.audit || {}) },
+        run: { ...defaults.run, ...(parsed.run || {}) },
+        decision: { ...defaults.decision, ...(parsed.decision || {}) },
+      };
+    }
   } catch {
     return defaultState();
   }
@@ -241,13 +301,28 @@ function getNotes(id) {
   return state.items[id]?.notes || '';
 }
 
+function getItemField(id, key) {
+  return state.items[id]?.[key] || '';
+}
+
 function ensureItem(id) {
-  if (!state.items[id]) state.items[id] = { status: 'not-tested', notes: '' };
+  if (!state.items[id]) {
+    state.items[id] = {
+      status: 'not-tested',
+      notes: '',
+      caseNumber: '',
+      evidenceLink: '',
+      testedAt: '',
+    };
+  }
 }
 
 function setStatus(id, status) {
   ensureItem(id);
   state.items[id].status = status;
+  if (status !== 'not-tested' && !state.items[id].testedAt) {
+    state.items[id].testedAt = new Date().toISOString();
+  }
   persist();
   refreshItemCard(id);
   refreshProgress();
@@ -256,6 +331,12 @@ function setStatus(id, status) {
 function setNotes(id, notes) {
   ensureItem(id);
   state.items[id].notes = notes;
+  persist();
+}
+
+function setItemField(id, key, value) {
+  ensureItem(id);
+  state.items[id][key] = value;
   persist();
 }
 
@@ -350,6 +431,8 @@ function renderShell() {
 
       ${renderSmokeRecord()}
 
+      ${renderSmokeSession()}
+
       <section class="progress-panel" aria-label="Smoke test progress">
         <div class="progress-head">
           <div>
@@ -419,6 +502,59 @@ function renderSmokeRecord() {
   `;
 }
 
+function renderSmokeSession() {
+  const audit = state.audit || defaultState().audit;
+  const run = state.run || defaultState().run;
+  return `
+    <section class="session-panel" aria-labelledby="session-title">
+      <div class="session-head">
+        <div>
+          <div class="panel-label">Smoke Session</div>
+          <h2 id="session-title">Fresh clone gate and run metadata</h2>
+        </div>
+        <button class="btn btn-audit" id="btn-audit-session" type="button">
+          Copy Final Fresh Clone Audit Prompt
+        </button>
+      </div>
+      <div class="run-fields">
+        ${RUN_FIELDS.map((field) => `
+          <label class="run-field" for="run-${field.key}">
+            <span>${esc(field.label)}</span>
+            <input
+              id="run-${field.key}"
+              data-run-field="${field.key}"
+              value="${esc(run[field.key] || '')}"
+              placeholder="${esc(field.placeholder)}"
+            />
+          </label>
+        `).join('')}
+      </div>
+      <div class="audit-verdict-group" role="group" aria-label="Fresh clone audit verdict">
+        ${AUDIT_OPTS.map((opt) => {
+          const selected = audit.verdict === opt.id;
+          return `
+            <button
+              class="audit-option${selected ? ` ${opt.cls}` : ''}"
+              type="button"
+              data-audit-verdict="${opt.id}"
+              aria-pressed="${selected}"
+            >
+              <span>${esc(opt.label)}</span>
+              <small>${esc(opt.desc)}</small>
+            </button>
+          `;
+        }).join('')}
+      </div>
+      <label class="audit-notes-label" for="audit-notes">Fresh clone audit notes</label>
+      <textarea
+        class="audit-notes"
+        id="audit-notes"
+        placeholder="Paste audit verdict, blocker summary, or cited evidence links"
+      >${esc(audit.notes || '')}</textarea>
+    </section>
+  `;
+}
+
 function renderSections() {
   const nav = document.getElementById('section-nav');
   const container = document.getElementById('section-container');
@@ -465,6 +601,20 @@ function renderSections() {
             <span class="sr-only">Notes for item ${idx + 1}</span>
             <textarea class="notes-input" id="ta-${item.id}" placeholder="Notes" rows="1">${esc(notes)}</textarea>
           </label>
+          <div class="evidence-grid" aria-label="Evidence for item ${idx + 1}">
+            ${ITEM_FIELD_DEFS.map((field) => `
+              <label class="evidence-field" for="${field.key}-${item.id}">
+                <span>${esc(field.label)}</span>
+                <input
+                  id="${field.key}-${item.id}"
+                  data-item-field="${field.key}"
+                  data-item-id="${item.id}"
+                  value="${esc(getItemField(item.id, field.key))}"
+                  placeholder="${esc(field.placeholder)}"
+                />
+              </label>
+            `).join('')}
+          </div>
         </article>
       `;
     });
@@ -497,10 +647,10 @@ function mkStatusButton(itemId, status, label, current) {
 function renderDecision() {
   const decision = state.decision || { verdict: null, notes: '' };
   return `
-    <section class="section decision-section" id="sec-s7">
+    <section class="section decision-section" id="sec-final">
       <div class="section-head">
         <div>
-          <div class="section-number">Section 7</div>
+          <div class="section-number">Section ${SECTIONS.length + 1}</div>
           <h2>Final Decision</h2>
         </div>
       </div>
@@ -562,6 +712,42 @@ function attachItemListeners(id) {
       autoResize(textarea);
     });
     autoResize(textarea);
+  }
+
+  card.querySelectorAll('[data-item-field]').forEach((input) => {
+    input.addEventListener('input', () => {
+      setItemField(id, input.dataset.itemField, input.value);
+    });
+  });
+}
+
+function attachSmokeSessionListeners() {
+  document.getElementById('btn-audit-session')?.addEventListener('click', copyAuditPrompt);
+
+  document.querySelectorAll('[data-run-field]').forEach((input) => {
+    input.addEventListener('input', () => {
+      state.run[input.dataset.runField] = input.value;
+      persist();
+    });
+  });
+
+  document.querySelectorAll('[data-audit-verdict]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.audit.verdict = button.dataset.auditVerdict;
+      persist();
+      refreshAuditVerdict();
+      refreshProgress();
+    });
+  });
+
+  const auditNotes = document.getElementById('audit-notes');
+  if (auditNotes) {
+    auditNotes.addEventListener('input', () => {
+      state.audit.notes = auditNotes.value;
+      persist();
+      autoResize(auditNotes);
+    });
+    autoResize(auditNotes);
   }
 }
 
@@ -656,6 +842,8 @@ function refreshItemCard(id) {
     button.classList.toggle('is-active', isActive);
     button.setAttribute('aria-pressed', String(isActive));
   });
+  const timestampInput = document.getElementById(`testedAt-${id}`);
+  if (timestampInput) timestampInput.value = getItemField(id, 'testedAt');
 }
 
 function refreshDecision() {
@@ -665,6 +853,27 @@ function refreshDecision() {
     button.className = `decision-option${selected && opt ? ` ${opt.cls}` : ''}`;
     button.setAttribute('aria-pressed', String(selected));
   });
+}
+
+function refreshAuditVerdict() {
+  document.querySelectorAll('[data-audit-verdict]').forEach((button) => {
+    const opt = AUDIT_OPTS.find((item) => item.id === button.dataset.auditVerdict);
+    const selected = state.audit.verdict === button.dataset.auditVerdict;
+    button.className = `audit-option${selected && opt ? ` ${opt.cls}` : ''}`;
+    button.setAttribute('aria-pressed', String(selected));
+  });
+}
+
+function refreshSmokeSession() {
+  document.querySelectorAll('[data-run-field]').forEach((input) => {
+    input.value = state.run?.[input.dataset.runField] || '';
+  });
+  const auditNotes = document.getElementById('audit-notes');
+  if (auditNotes) {
+    auditNotes.value = state.audit?.notes || '';
+    autoResize(auditNotes);
+  }
+  refreshAuditVerdict();
 }
 
 function refreshProgress() {
@@ -725,7 +934,13 @@ function updateReadinessSummary(count) {
 
   let tone = 'neutral';
   let text = `${count.nt} items remain unchecked.`;
-  if (count.fail || count.blocked) {
+  if (state.audit?.verdict === 'hold') {
+    tone = 'attention';
+    text = 'Fresh clone audit is HOLD - BLOCKER FOUND. Do not start live smoke.';
+  } else if (state.audit?.verdict !== 'ready') {
+    tone = 'attention';
+    text = 'Fresh clone audit verdict is not recorded as READY FOR DAVIS-ONLY SMOKE.';
+  } else if (count.fail || count.blocked) {
     tone = 'attention';
     text = `${count.fail + count.blocked} item${count.fail + count.blocked === 1 ? '' : 's'} need attention before smoke.`;
   } else if (count.nt === 0) {
@@ -742,10 +957,36 @@ function autoResize(el) {
   el.style.height = `${el.scrollHeight}px`;
 }
 
+function plainText(text) {
+  return text.replace(/`([^`]+)`/g, '$1');
+}
+
+function itemEvidence(id) {
+  const item = state.items[id] || {};
+  return {
+    caseNumber: item.caseNumber || '',
+    evidenceLink: item.evidenceLink || '',
+    testedAt: item.testedAt || '',
+    notes: item.notes || '',
+  };
+}
+
+function appendEvidence(md, evidence) {
+  const lines = [];
+  if (evidence.caseNumber.trim()) lines.push(`  - Case: ${evidence.caseNumber.trim()}`);
+  if (evidence.evidenceLink.trim()) lines.push(`  - Evidence: ${evidence.evidenceLink.trim()}`);
+  if (evidence.testedAt.trim()) lines.push(`  - Timestamp: ${evidence.testedAt.trim()}`);
+  if (evidence.notes.trim()) lines.push(`  - Notes: ${evidence.notes.trim().replace(/\n/g, '\n    ')}`);
+  return lines.length ? `${md}${lines.join('\n')}\n` : `${md}  - Evidence: _(none recorded)_\n`;
+}
+
 function exportSummary() {
   const now = new Date().toISOString();
   const decision = state.decision || { verdict: null, notes: '' };
   const option = DECISION_OPTS.find((item) => item.id === decision.verdict);
+  const audit = state.audit || defaultState().audit;
+  const auditOpt = AUDIT_OPTS.find((item) => item.id === audit.verdict);
+  const run = state.run || defaultState().run;
   const count = totals();
 
   let md = '';
@@ -755,6 +996,12 @@ function exportSummary() {
   md += '- HYBRID_AUTO_CLOSE_LIVE: true (PR #7)\n';
   md += '- PASSIVE_CLOSE_LIVE: false (must remain off)\n';
   md += '- Scope: Davis / trusted cohort only - Hapag-Lloyd IDT Export Rail\n\n';
+  md += '## Smoke Session\n';
+  md += `- Tester: ${run.tester?.trim() || '_Not recorded_'}\n`;
+  md += `- Environment URL: ${run.environmentUrl?.trim() || '_Not recorded_'}\n`;
+  md += `- Fresh clone audit verdict: ${auditOpt ? auditOpt.label : '_Not recorded_'}\n`;
+  if (audit.notes?.trim()) md += `- Fresh clone audit notes: ${audit.notes.trim().replace(/\n/g, '\n  ')}\n`;
+  md += '\n';
   md += '## Summary\n';
   md += `- Pass: ${count.pass}\n`;
   md += `- Fail: ${count.fail}\n`;
@@ -771,7 +1018,7 @@ function exportSummary() {
     section.items.forEach((item) => {
       const status = getStatus(item.id);
       if (status === 'fail' || status === 'blocked') {
-        badItems.push({ section, item, status, notes: getNotes(item.id) });
+        badItems.push({ section, item, status, evidence: itemEvidence(item.id) });
       }
     });
   });
@@ -781,15 +1028,36 @@ function exportSummary() {
     md += '_None. All tested items passed or are not yet tested._\n\n';
   } else {
     let lastSectionId = null;
-    badItems.forEach(({ section, item, status, notes }) => {
+    badItems.forEach(({ section, item, status, evidence }) => {
       if (lastSectionId !== section.id) {
         md += `### ${section.num}. ${section.title}\n`;
         lastSectionId = section.id;
       }
-      md += `- ${status.toUpperCase()} - ${item.text.replace(/`([^`]+)`/g, '$1')}\n`;
-      md += notes?.trim()
-        ? `  > ${notes.trim().replace(/\n/g, '\n  > ')}\n`
-        : '  > _(no notes)_\n';
+      md += `- ${status.toUpperCase()} - ${plainText(item.text)}\n`;
+      md = appendEvidence(md, evidence);
+    });
+    md += '\n';
+  }
+
+  const evidenceItems = [];
+  SECTIONS.forEach((section) => {
+    section.items.forEach((item) => {
+      const evidence = itemEvidence(item.id);
+      const hasEvidence = ['caseNumber', 'evidenceLink', 'testedAt', 'notes']
+        .some((key) => evidence[key]?.trim());
+      if (hasEvidence && getStatus(item.id) !== 'not-tested') {
+        evidenceItems.push({ section, item, status: getStatus(item.id), evidence });
+      }
+    });
+  });
+
+  md += '## Recorded Smoke Evidence\n\n';
+  if (!evidenceItems.length) {
+    md += '_No item evidence recorded._\n\n';
+  } else {
+    evidenceItems.forEach(({ section, item, status, evidence }) => {
+      md += `- ${section.num}.${section.items.indexOf(item) + 1} ${status.toUpperCase()} - ${plainText(item.text)}\n`;
+      md = appendEvidence(md, evidence);
     });
     md += '\n';
   }
@@ -886,7 +1154,7 @@ function fallbackCopy(text, onDone) {
 
 function resetAll() {
   const ok = window.confirm(
-    'Reset all checklist state?\n\nThis clears every status, note, and final decision.'
+    'Reset all checklist state?\n\nThis clears every status, evidence field, audit verdict, note, and final decision.'
   );
   if (!ok) return;
   state = defaultState();
@@ -898,6 +1166,7 @@ function resetAll() {
   renderSections();
   refreshProgress();
   refreshSavedTime();
+  refreshSmokeSession();
 }
 
 function refreshSavedTime() {
@@ -915,11 +1184,15 @@ function init() {
   refreshSavedTime();
   setupPwaControls();
   registerServiceWorker();
+  attachShellListeners();
+}
 
+function attachShellListeners() {
   document.getElementById('btn-reset')?.addEventListener('click', resetAll);
   document.getElementById('btn-export')?.addEventListener('click', exportSummary);
   document.getElementById('btn-audit-top')?.addEventListener('click', copyAuditPrompt);
   document.getElementById('btn-next-open')?.addEventListener('click', jumpToNextOpen);
+  attachSmokeSessionListeners();
   document.querySelectorAll('.filter-btn').forEach((button) => {
     button.addEventListener('click', () => setFilter(button.dataset.filter));
   });

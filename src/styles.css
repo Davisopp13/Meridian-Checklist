@@ -50,12 +50,14 @@ body {
 }
 
 button,
+input,
 textarea {
   font: inherit;
 }
 
 button:focus-visible,
 a:focus-visible,
+input:focus-visible,
 textarea:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
@@ -271,6 +273,7 @@ code {
 .hero-copy,
 .status-panel,
 .record-panel,
+.session-panel,
 .progress-panel,
 .section,
 .decision-card {
@@ -425,6 +428,143 @@ code {
 
 .record-group li {
   color: var(--text-sec);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.session-panel {
+  margin-bottom: 16px;
+  padding: 18px;
+  border-radius: 16px;
+}
+
+.session-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.session-head h2 {
+  margin: 4px 0 0;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.run-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.run-field,
+.evidence-field {
+  display: grid;
+  gap: 5px;
+}
+
+.run-field span,
+.evidence-field span,
+.audit-notes-label {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.run-field input,
+.evidence-field input,
+.audit-notes {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-pri);
+}
+
+.run-field input,
+.evidence-field input {
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.run-field input::placeholder,
+.evidence-field input::placeholder,
+.audit-notes::placeholder {
+  color: var(--text-dim);
+}
+
+.audit-verdict-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.audit-option {
+  min-height: 86px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-pri);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 150ms cubic-bezier(0.3, 0, 0.2, 1), background 150ms cubic-bezier(0.3, 0, 0.2, 1), transform 150ms cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+.audit-option:hover {
+  transform: translateY(-1px);
+  border-color: rgba(96, 165, 250, 0.42);
+}
+
+.audit-option span,
+.audit-option small {
+  display: block;
+}
+
+.audit-option span {
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.audit-option small {
+  margin-top: 7px;
+  color: var(--text-sec);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.audit-option.audit-ready {
+  border-color: rgba(34, 197, 94, 0.52);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.audit-option.audit-hold {
+  border-color: rgba(239, 68, 68, 0.56);
+  background: rgba(239, 68, 68, 0.13);
+}
+
+.audit-option.audit-not-run {
+  border-color: rgba(148, 163, 184, 0.38);
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.audit-notes-label {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.audit-notes {
+  min-height: 68px;
+  padding: 9px 11px;
+  resize: vertical;
   font-size: 12px;
   line-height: 1.45;
 }
@@ -799,6 +939,13 @@ code {
   color: var(--text-dim);
 }
 
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 12px 12px 50px;
+}
+
 .decision-card {
   padding: 16px;
   border-radius: 14px;
@@ -1016,6 +1163,17 @@ code {
 
   .record-grid {
     grid-template-columns: 1fr;
+  }
+
+  .run-fields,
+  .audit-verdict-group,
+  .evidence-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .session-head {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .audit-gate {
