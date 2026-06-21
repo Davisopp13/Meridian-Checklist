@@ -1,4 +1,4 @@
-const CACHE_NAME = 'meridian-smoke-pwa-v2';
+const CACHE_NAME = 'the-grid-pwa-v3';
 const APP_SHELL = [
   '/',
   '/index.html',

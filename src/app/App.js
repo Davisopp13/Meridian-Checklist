@@ -49,10 +49,25 @@ let reports = loadReports();
 const audioUrls = new Map();
 let pwaEventsBound = false;
 
-function setActiveView(view) {
+function revealActiveView() {
+  window.requestAnimationFrame(() => {
+    const main = document.getElementById('top');
+    if (!main) return;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const offset = window.matchMedia('(max-width: 860px)').matches ? 8 : 150;
+    const target = Math.max(0, main.getBoundingClientRect().top + window.scrollY - offset);
+    window.scrollTo({
+      top: target,
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    });
+  });
+}
+
+function setActiveView(view, options = {}) {
   activeView = GRID_NAV_ITEMS.some((item) => item.id === view) ? view : DEFAULT_VIEW;
   localStorage.setItem(GRID_KEYS.activeView, activeView);
   renderApp();
+  if (options.reveal) revealActiveView();
 }
 
 function setActivePort(portId) {
@@ -517,7 +532,7 @@ function renderSettingsView() {
 
 function attachShellListeners() {
   document.querySelectorAll('[data-grid-view]').forEach((button) => {
-    button.addEventListener('click', () => setActiveView(button.dataset.gridView));
+    button.addEventListener('click', () => setActiveView(button.dataset.gridView, { reveal: true }));
   });
   document.querySelectorAll('[data-port-id]').forEach((button) => {
     button.addEventListener('click', () => {
