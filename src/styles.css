@@ -256,6 +256,142 @@ code {
   background: rgba(96, 165, 250, 0.2);
 }
 
+.grid-shell {
+  min-height: 100vh;
+}
+
+.grid-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 72px;
+  padding: 12px clamp(16px, 4vw, 34px);
+  border-bottom: 1px solid rgba(96, 165, 250, 0.18);
+  background: rgba(7, 12, 24, 0.92);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+}
+
+.grid-brand .brand-name {
+  font-size: 18px;
+}
+
+.grid-nav {
+  position: sticky;
+  top: 72px;
+  z-index: 55;
+  display: flex;
+  gap: 8px;
+  padding: 10px clamp(16px, 4vw, 34px);
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.12);
+  background: rgba(9, 15, 28, 0.88);
+  backdrop-filter: blur(14px);
+}
+
+.grid-nav-btn {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  border-radius: 10px;
+  background: rgba(96, 165, 250, 0.08);
+  color: var(--text-sec);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.grid-nav-btn:hover {
+  border-color: rgba(96, 165, 250, 0.36);
+  background: rgba(96, 165, 250, 0.14);
+  color: #ffffff;
+}
+
+.grid-nav-btn.is-active {
+  border-color: rgba(96, 165, 250, 0.56);
+  background: rgba(0, 48, 135, 0.46);
+  color: #dbeafe;
+}
+
+.grid-layout {
+  padding-top: 24px;
+}
+
+.grid-command-hero .hero-copy {
+  border-color: rgba(96, 165, 250, 0.2);
+}
+
+.grid-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.grid-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 176px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.026));
+  box-shadow: var(--shadow-subtle);
+}
+
+.grid-card h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.grid-card p {
+  margin: 0;
+  color: var(--text-sec);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.grid-card .btn {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.port-card.is-active {
+  border-color: rgba(232, 84, 10, 0.42);
+  background: linear-gradient(180deg, rgba(232, 84, 10, 0.11), rgba(255, 255, 255, 0.026));
+}
+
+.port-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.port-tags span {
+  padding: 4px 8px;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.08);
+  color: #dbeafe;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.port-scope {
+  margin-bottom: 18px;
+  border: 1px solid rgba(232, 84, 10, 0.3);
+  border-radius: 14px;
+}
+
 .layout {
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
@@ -994,6 +1130,67 @@ code {
   opacity: 0;
 }
 
+select {
+  min-height: 36px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-pri);
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.inbox-fields {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.audio-file-field input {
+  padding-top: 8px;
+}
+
+.composer-actions,
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.report-preview,
+.prompt-preview {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(15, 17, 23, 0.58);
+  color: var(--text-sec);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.report-preview {
+  min-height: 360px;
+  padding: 14px;
+}
+
+.prompt-preview {
+  min-height: 180px;
+  padding: 12px;
+}
+
+.settings-key-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.settings-import {
+  flex-shrink: 0;
+}
+
 .audio-list {
   display: grid;
   gap: 10px;
@@ -1289,6 +1486,20 @@ code {
   }
 
   .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .grid-nav {
+    top: 122px;
+  }
+
+  .grid-card-grid,
+  .inbox-fields {
     grid-template-columns: 1fr;
   }
 

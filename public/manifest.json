@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Meridian Port",
-  "short_name": "Meridian Port",
-  "description": "Installable offline checklist for Meridian PR #7 controlled hybrid auto-close smoke readiness.",
+  "name": "The Grid",
+  "short_name": "The Grid",
+  "description": "Local-first operations shell with Meridian Port readiness, smoke evidence, reports, prompts, and audio inbox.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

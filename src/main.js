@@ -1,448 +1,50 @@
 import './styles.css';
+import { GRID_NAV_ITEMS } from './grid/navigation/navigation.js';
+import { PROJECT_REGISTRY, getActiveProject } from './grid/projectRegistry/projectRegistry.js';
+import { GRID_KEYS, GRID_STORAGE_KEYS, LEGACY_MERIDIAN_KEY } from './grid/settings/storageKeys.js';
+import { exportGridData, importGridData, clearGridLocalData } from './grid/settings/gridData.js';
+import { loadReports, clearReports } from './grid/reports/reportsStorage.js';
+import {
+  clearAudioStore,
+  deleteAudioBlob,
+  getAudioBlob,
+  loadInbox,
+  persistInbox,
+  putAudioBlob,
+} from './grid/inbox/audioStorage.js';
+import {
+  MERIDIAN_AUDIT_OPTS,
+  MERIDIAN_DECISION_OPTS,
+  MERIDIAN_FILTERS,
+  MERIDIAN_ITEM_FIELD_DEFS,
+  MERIDIAN_RUN_FIELDS,
+  MERIDIAN_SECTIONS,
+  MERIDIAN_SMOKE_RECORD_SECTIONS,
+} from './ports/meridian/meridianChecklistData.js';
+import { MERIDIAN_PROMPTS, finalFreshCloneAuditPrompt } from './ports/meridian/meridianAuditPrompt.js';
+import {
+  clearMeridianExports,
+  clearMeridianState,
+  defaultMeridianState,
+  getMeridianExports,
+  loadMeridianState,
+  persistMeridianState,
+  saveMeridianExport,
+} from './ports/meridian/meridianStorage.js';
+import { buildMeridianExport } from './ports/meridian/meridianExport.js';
 
-const STORAGE_KEY = 'meridian_smoke_pr7_v2';
-const AUDIO_DB_NAME = 'meridian-port';
-const AUDIO_STORE_NAME = 'audio';
-const AUDIO_DB_VERSION = 1;
-
-const SECTIONS = [
-  {
-    id: 's1',
-    num: 1,
-    title: 'Smoke Setup',
-    short: 'Setup',
-    items: [
-      { id: 'p1', text: 'Smoke environment or Vercel preview URL is open and recorded in Smoke Session.' },
-      { id: 'p2', text: 'Hybrid trial access is detected for the scoped tester: `state.hybridAccessConfirmed === true` is visible via widget console log or monitor panel header.' },
-      { id: 'p3', text: 'Broad non-hybrid bookmarklet remains manual-first; passive case-start remains off.' },
-      { id: 'p4', text: 'Monitor panel loads without error - no red banners, no uncaught exceptions in browser console.' },
-      { id: 'p5', text: 'Precision panel correctly handles an RPC failure - does NOT show a false empty-state; error state is visually distinct from genuine no-data.' },
-    ],
-  },
-  {
-    id: 's2',
-    num: 2,
-    title: 'Resolved Case Smoke',
-    short: 'Resolved',
-    items: [
-      { id: 'r1', text: 'Manually start and track a case in Meridian (manual `case_start` only - passive case-start remains off).' },
-      { id: 'r2', text: 'Resolve the same case in Salesforce (case status -> Resolved).' },
-      { id: 'r3', text: 'Meridian silently closes the tracked case - no agent action required.' },
-      { id: 'r4', text: 'No toast, card, banner, or extra UI appears in the widget during or after auto-close.' },
-      { id: 'r5', text: 'Supabase check: `case_events` row exists with `type = "resolved"` for the test case.' },
-      { id: 'r6', text: 'Supabase check: same `case_events` row has `source = "passive_auto"`.' },
-      { id: 'r7', text: 'Linked row in `case_outcome_observations` reflects the passive auto-close: observation is linked to the passive `case_events` row, and the current auto-close marker is populated, such as `auto_closed_at` or the current passive-auto marker field.' },
-      { id: 'r8', text: 'Monitor panel reflects the passive close - event appears in monitor log and/or count updates correctly.' },
-    ],
-  },
-  {
-    id: 's3',
-    num: 3,
-    title: 'Reclassified Case Smoke',
-    short: 'Reclass',
-    items: [
-      { id: 'rc1', text: 'Manually start and track a different case in Meridian.' },
-      { id: 'rc2', text: 'Reclassify the same case in Salesforce (type/subtype change that triggers the reclassification detection path).' },
-      { id: 'rc3', text: 'Meridian silently closes the tracked case via passive detection - no agent action required.' },
-      { id: 'rc4', text: 'Supabase check: `case_events` row exists with `type = "reclassified"` for the test case.' },
-      { id: 'rc5', text: 'Supabase check: same `case_events` row has `source = "passive_auto"`.' },
-      { id: 'rc6', text: 'Linked row in `case_outcome_observations` reflects the passive auto-close: observation is linked to the passive `case_events` row, and the current auto-close marker is populated, such as `auto_closed_at` or the current passive-auto marker field.' },
-      { id: 'rc7', text: 'Monitor panel reflects the passive close for the reclassified case.' },
-    ],
-  },
-  {
-    id: 's4',
-    num: 4,
-    title: 'Complete-during-reclassification Guard',
-    short: 'Complete guard',
-    items: [
-      { id: 'cg1', text: 'Manually start and track a case that can hit Complete while reclassification handling is in progress.' },
-      { id: 'cg2', text: 'Trigger the Complete-during-reclassification path using the live widget/Salesforce workflow or the approved smoke repro path.' },
-      { id: 'cg3', text: '`reclass_in_progress_at_complete` guard blocks unsafe passive auto-close while reclassification is still in progress.' },
-      { id: 'cg4', text: 'No duplicate or incorrect production `case_events` close row is created during the guarded window.' },
-      { id: 'cg5', text: 'Widget and monitor state remain coherent after the reclassification path settles.' },
-    ],
-  },
-  {
-    id: 's5',
-    num: 5,
-    title: 'Low-confidence / Shadow-only Smoke',
-    short: 'Shadow',
-    items: [
-      { id: 'lc1', text: 'Trigger or observe a low-confidence or non-promoted candidate (confidence below promotion threshold).' },
-      { id: 'lc2', text: 'Shadow outcome row may be recorded in `case_outcome_observations`, but it is not linked or marked as passive auto-closed; the current passive-auto marker field remains unset.' },
-      { id: 'lc3', text: 'No production close happens for this candidate - no `case_events` row written with `source = "passive_auto"`.' },
-      { id: 'lc4', text: 'Tracked case remains open in Meridian - low-confidence signal did NOT trigger an auto-close.' },
-    ],
-  },
-  {
-    id: 's6',
-    num: 6,
-    title: 'No-tracked-case Safety Smoke',
-    short: 'Safety',
-    items: [
-      { id: 'nt1', text: 'Observe passive detection firing for a case that is NOT currently in `state.cases` (not tracked in this session).' },
-      { id: 'nt2', text: 'No production close happens - no `case_events` write, no session state change for the untracked case.' },
-      { id: 'nt3', text: 'Safety invariant confirmed: passive detection can only close a case that is actively tracked. No tracked case -> close nothing.' },
-    ],
-  },
-  {
-    id: 's7',
-    num: 7,
-    title: 'Regression Checks',
-    short: 'Regression',
-    items: [
-      { id: 'rg1', text: 'Manual Resolve still works end-to-end - agent-triggered resolve logs a `case_events` row correctly; no regression from PR #7.' },
-      { id: 'rg2', text: 'Manual Reclassify still works end-to-end - agent-triggered reclassification logs correctly.' },
-      { id: 'rg3', text: 'Passive case-start remains off - manual case-start is still the only mechanism that adds a case to `state.cases`.' },
-      { id: 'rg4', text: 'A non-hybrid or out-of-trial user does NOT auto-close: `PASSIVE_CLOSE_LIVE = false` and the `hybridAccessConfirmed` gate both block non-trial users.' },
-      { id: 'rg5', text: 'Monitor / error UI correctly distinguishes RPC failure from genuine no-data - different error states render differently; no false positives.' },
-    ],
-  },
-];
-
-const DECISION_OPTS = [
-  {
-    id: 'keep',
-    cls: 'sel-keep',
-    label: 'Ready - Keep Scoped Trial On',
-    desc: 'All critical paths pass. Trial continues with PR #7 live.',
-  },
-  {
-    id: 'rollback',
-    cls: 'sel-rollback',
-    label: 'Roll Back Scoped Trial',
-    desc: 'Critical failure found. Revert HYBRID_AUTO_CLOSE_LIVE to false.',
-  },
-  {
-    id: 'fix',
-    cls: 'sel-fix',
-    label: 'Needs Fix Before Continuing',
-    desc: 'Blocked or failed items require resolution first. Trial paused.',
-  },
-];
-
-const FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'open', label: 'Open' },
-  { id: 'attention', label: 'Needs attention' },
-  { id: 'complete', label: 'Passed' },
-];
-
-const AUDIT_OPTS = [
-  {
-    id: 'not-run',
-    cls: 'audit-not-run',
-    label: 'Not run',
-    desc: 'Fresh clone audit has not been recorded.',
-  },
-  {
-    id: 'ready',
-    cls: 'audit-ready',
-    label: 'READY FOR DAVIS-ONLY SMOKE',
-    desc: 'Fresh clone audit returned a ready verdict.',
-  },
-  {
-    id: 'hold',
-    cls: 'audit-hold',
-    label: 'HOLD - BLOCKER FOUND',
-    desc: 'Fresh clone audit found a blocker.',
-  },
-];
-
-const RUN_FIELDS = [
-  { key: 'tester', label: 'Tester', placeholder: 'Davis / tester name' },
-  { key: 'environmentUrl', label: 'Environment URL', placeholder: 'Vercel preview or deployed URL' },
-];
-
-const ITEM_FIELD_DEFS = [
-  { key: 'caseNumber', label: 'Case #', placeholder: 'CT case number' },
-  { key: 'evidenceLink', label: 'Evidence link', placeholder: 'Screenshot, admin, PR, or log link' },
-  { key: 'testedAt', label: 'Timestamp', placeholder: 'Auto-filled on status change' },
-];
-
-const SMOKE_RECORD_SECTIONS = [
-  {
-    title: 'Containment boundary',
-    items: [
-      '`PASSIVE_CLOSE_LIVE = false` remains the broad passive close kill switch.',
-      '`HYBRID_AUTO_CLOSE_LIVE = true` enables only the scoped hybrid trial path.',
-      '`state.hybridAccessConfirmed === true` is required before production auto-close writes.',
-      'No Supabase migration, schema, RLS, RPC, table, relay, dashboard, MPL, or Supabase client change is included.',
-    ],
-  },
-  {
-    title: 'Critical outcome paths',
-    items: [
-      'Resolved case auto-close smoke.',
-      'Reclassified case auto-close smoke.',
-      '`reclass_in_progress_at_complete` guard for Complete-during-reclassification safety.',
-      'Low-confidence shadow-only behavior.',
-      'No-tracked-case close-nothing safety.',
-    ],
-  },
-  {
-    title: 'Deployment separation',
-    items: [
-      'Human review, PR approval, merge, deployment, and post-deploy smoke remain separate gates.',
-      'Rollback sets `PASSIVE_CLOSE_LIVE = false` and `HYBRID_AUTO_CLOSE_LIVE = false`.',
-      'This artifact is approved as the human smoke record, not broad passive-close readiness evidence.',
-    ],
-  },
-];
-
-function finalFreshCloneAuditPrompt() {
-  return [
-    'Run tools now.',
-    '',
-    'Perform a Final Fresh Clone Readiness Audit for Meridian PR #7 controlled hybrid auto-close smoke readiness.',
-    '',
-    'Scope:',
-    '- Focus only on PR #7 readiness for the Davis-only controlled hybrid auto-close smoke.',
-    '- Do not re-audit all of Meridian.',
-    '- Do not treat Codex claims, this working tree, stale local state, or Supabase migration history alone as source of truth.',
-    '- Use GitHub source of truth from a fresh clone or fresh PR checkout.',
-    '- Cite exact file paths and line numbers for every code claim.',
-    '- Quote the relevant code lines for every required safety claim.',
-    '',
-    'Hard prohibitions:',
-    '- Do not touch Supabase.',
-    '- Do not apply migrations.',
-    '- Do not flip flags.',
-    '- Do not deploy anything.',
-    '- Do not make code changes.',
-    '',
-    'Layer 1 - PR / code state:',
-    '- Start from a fresh clone or fresh PR checkout.',
-    '- Confirm PR #7 HEAD and base.',
-    '- Confirm changed files.',
-    '- Confirm only public/ct-widget.js changed.',
-    '- Confirm PASSIVE_CLOSE_LIVE=false.',
-    '- Confirm HYBRID_AUTO_CLOSE_LIVE=true.',
-    '- Confirm the hybridAccessConfirmed gate remains intact.',
-    '',
-    'Layer 2 - Passive-close safety path:',
-    '- Quote the close gate.',
-    '- Quote the tracked-case invariant.',
-    '- Quote resolved/reclassified-only promotion.',
-    '- Quote low-confidence shadow-only behavior.',
-    '- Quote no-tracked-case close-nothing behavior.',
-    '',
-    'Layer 3 - Complete-during-reclassification fix:',
-    '- Confirm reclass_in_progress_at_complete blocker exists on main / PR branch.',
-    '- Run or inspect the passive harness branch if needed.',
-    '- Confirm the synthetic harness is green for signature_reclass_at_complete.',
-    '- Explicitly state whether the manual corpus is active or inactive.',
-    '',
-    'Layer 4 - Operational readiness:',
-    '- State remaining non-code gates:',
-    '  - actual schema/RPC present,',
-    '  - holdout or reconciliation posture,',
-    '  - cohort scope,',
-    '  - smoke checklist ready.',
-    '',
-    'Return format:',
-    '- Keep it focused and concise.',
-    '- Include cited evidence by file path and line number.',
-    '- End with exactly one binary smoke verdict:',
-    '  READY FOR DAVIS-ONLY SMOKE',
-    '  HOLD - BLOCKER FOUND',
-  ].join('\n');
-}
+const DEFAULT_PORT = 'meridian-port';
+const DEFAULT_VIEW = 'command';
 
 let currentFilter = 'all';
 let deferredInstallPrompt = null;
-let state = loadState();
+let activeView = localStorage.getItem(GRID_KEYS.activeView) || DEFAULT_VIEW;
+let activePortId = localStorage.getItem(GRID_KEYS.activePort) || DEFAULT_PORT;
+let meridianState = loadMeridianState();
+let inboxItems = loadInbox();
+let reports = loadReports();
 const audioUrls = new Map();
-
-function defaultState() {
-  return {
-    items: {},
-    audit: { verdict: 'not-run', notes: '' },
-    run: { tester: '', environmentUrl: '' },
-    audio: [],
-    decision: { verdict: null, notes: '' },
-    savedAt: null,
-  };
-}
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const defaults = defaultState();
-      const parsed = JSON.parse(raw);
-      return {
-        ...defaults,
-        ...parsed,
-        items: parsed.items || defaults.items,
-        audit: { ...defaults.audit, ...(parsed.audit || {}) },
-        run: { ...defaults.run, ...(parsed.run || {}) },
-        audio: Array.isArray(parsed.audio) ? parsed.audio : defaults.audio,
-        decision: { ...defaults.decision, ...(parsed.decision || {}) },
-      };
-    }
-  } catch {
-    return defaultState();
-  }
-  return defaultState();
-}
-
-function persist() {
-  state.savedAt = new Date().toISOString();
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // Local persistence is best-effort.
-  }
-  const saved = document.getElementById('last-saved');
-  if (saved) saved.textContent = `Saved ${new Date(state.savedAt).toLocaleTimeString()}`;
-}
-
-function getStatus(id) {
-  return state.items[id]?.status || 'not-tested';
-}
-
-function getNotes(id) {
-  return state.items[id]?.notes || '';
-}
-
-function getItemField(id, key) {
-  return state.items[id]?.[key] || '';
-}
-
-function ensureItem(id) {
-  if (!state.items[id]) {
-    state.items[id] = {
-      status: 'not-tested',
-      notes: '',
-      caseNumber: '',
-      evidenceLink: '',
-      testedAt: '',
-    };
-  }
-}
-
-function setStatus(id, status) {
-  ensureItem(id);
-  state.items[id].status = status;
-  if (status !== 'not-tested' && !state.items[id].testedAt) {
-    state.items[id].testedAt = new Date().toISOString();
-  }
-  persist();
-  refreshItemCard(id);
-  refreshProgress();
-}
-
-function setNotes(id, notes) {
-  ensureItem(id);
-  state.items[id].notes = notes;
-  persist();
-}
-
-function setItemField(id, key, value) {
-  ensureItem(id);
-  state.items[id][key] = value;
-  persist();
-}
-
-function openAudioDb() {
-  return new Promise((resolve, reject) => {
-    if (!('indexedDB' in window)) {
-      reject(new Error('IndexedDB is unavailable'));
-      return;
-    }
-
-    const request = indexedDB.open(AUDIO_DB_NAME, AUDIO_DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(AUDIO_STORE_NAME)) {
-        db.createObjectStore(AUDIO_STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error('Unable to open audio database'));
-  });
-}
-
-async function withAudioStore(mode, action) {
-  const db = await openAudioDb();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(AUDIO_STORE_NAME, mode);
-    const store = transaction.objectStore(AUDIO_STORE_NAME);
-    let request;
-
-    try {
-      request = action(store);
-    } catch (error) {
-      db.close();
-      reject(error);
-      return;
-    }
-
-    transaction.oncomplete = () => {
-      db.close();
-      resolve(request?.result);
-    };
-    transaction.onerror = () => {
-      db.close();
-      reject(transaction.error || new Error('Audio database transaction failed'));
-    };
-    transaction.onabort = () => {
-      db.close();
-      reject(transaction.error || new Error('Audio database transaction aborted'));
-    };
-  });
-}
-
-function putAudioBlob(id, blob) {
-  return withAudioStore('readwrite', (store) => store.put(blob, id));
-}
-
-function getAudioBlob(id) {
-  return withAudioStore('readonly', (store) => store.get(id));
-}
-
-function deleteAudioBlob(id) {
-  return withAudioStore('readwrite', (store) => store.delete(id));
-}
-
-function clearAudioStore() {
-  return withAudioStore('readwrite', (store) => store.clear());
-}
-
-function makeAudioId(file) {
-  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
-  return `audio-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function setAudioUrl(id, blob) {
-  revokeAudioUrl(id);
-  const url = URL.createObjectURL(blob);
-  audioUrls.set(id, url);
-  return url;
-}
-
-function revokeAudioUrl(id) {
-  const existing = audioUrls.get(id);
-  if (existing) URL.revokeObjectURL(existing);
-  audioUrls.delete(id);
-}
-
-function revokeAllAudioUrls() {
-  Array.from(audioUrls.keys()).forEach((id) => revokeAudioUrl(id));
-}
-
-async function hydrateAudioUrls() {
-  await Promise.all((state.audio || []).map(async (item) => {
-    try {
-      const blob = await getAudioBlob(item.id);
-      if (blob) setAudioUrl(item.id, blob);
-    } catch {
-      // Missing or unavailable blobs leave the metadata visible for cleanup.
-    }
-  }));
-}
+let pwaEventsBound = false;
 
 function esc(value) {
   return String(value)
@@ -457,6 +59,71 @@ function fmtText(text) {
   return esc(text).replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
+function setActiveView(view) {
+  activeView = GRID_NAV_ITEMS.some((item) => item.id === view) ? view : DEFAULT_VIEW;
+  localStorage.setItem(GRID_KEYS.activeView, activeView);
+  renderApp();
+}
+
+function setActivePort(portId) {
+  activePortId = PROJECT_REGISTRY.some((project) => project.id === portId) ? portId : DEFAULT_PORT;
+  localStorage.setItem(GRID_KEYS.activePort, activePortId);
+  renderApp();
+}
+
+function persistMeridian() {
+  persistMeridianState(meridianState);
+  refreshSavedTime();
+}
+
+function getStatus(id) {
+  return meridianState.items[id]?.status || 'not-tested';
+}
+
+function getNotes(id) {
+  return meridianState.items[id]?.notes || '';
+}
+
+function getItemField(id, key) {
+  return meridianState.items[id]?.[key] || '';
+}
+
+function ensureItem(id) {
+  if (!meridianState.items[id]) {
+    meridianState.items[id] = {
+      status: 'not-tested',
+      notes: '',
+      caseNumber: '',
+      evidenceLink: '',
+      testedAt: '',
+    };
+  }
+}
+
+function setStatus(id, status) {
+  ensureItem(id);
+  meridianState.items[id].status = status;
+  if (status !== 'not-tested' && !meridianState.items[id].testedAt) {
+    meridianState.items[id].testedAt = new Date().toISOString();
+  }
+  persistMeridian();
+  refreshItemCard(id);
+  refreshProgress();
+  refreshCommandCards();
+}
+
+function setNotes(id, notes) {
+  ensureItem(id);
+  meridianState.items[id].notes = notes;
+  persistMeridian();
+}
+
+function setItemField(id, key, value) {
+  ensureItem(id);
+  meridianState.items[id][key] = value;
+  persistMeridian();
+}
+
 function totals() {
   let total = 0;
   let pass = 0;
@@ -464,7 +131,7 @@ function totals() {
   let blocked = 0;
   let nt = 0;
 
-  SECTIONS.forEach((section) => {
+  MERIDIAN_SECTIONS.forEach((section) => {
     section.items.forEach((item) => {
       total += 1;
       const status = getStatus(item.id);
@@ -480,106 +147,213 @@ function totals() {
   return { total, pass, fail, blocked, nt, tested, pct };
 }
 
-function renderShell() {
+function nextUncheckedItem() {
+  for (const section of MERIDIAN_SECTIONS) {
+    const item = section.items.find((entry) => getStatus(entry.id) === 'not-tested');
+    if (item) return { section, item };
+  }
+  return null;
+}
+
+function activeAuditLabel() {
+  return MERIDIAN_AUDIT_OPTS.find((opt) => opt.id === meridianState.audit?.verdict)?.label || 'Not run';
+}
+
+function activeDecisionLabel() {
+  return MERIDIAN_DECISION_OPTS.find((opt) => opt.id === meridianState.decision?.verdict)?.label || 'Not yet recorded';
+}
+
+function inboxCountForPort(portId = activePortId) {
+  return inboxItems.filter((item) => item.port === portId).length;
+}
+
+function renderApp() {
+  const project = getActiveProject(activePortId);
   document.getElementById('app').innerHTML = `
-    <div class="scope-banner" role="status">
-      <div class="scope-kicker">Scoped trial guardrail</div>
-      <div>
-        This checklist validates PR #7 only. Do not use it as broad
-        <code>PASSIVE_CLOSE_LIVE</code> readiness evidence.
-      </div>
-      <button class="audit-copy-btn" id="btn-audit-top" type="button">
-        Copy Final Fresh Clone Audit Prompt
-      </button>
+    <div class="grid-shell">
+      <header class="grid-header">
+        <a class="brand grid-brand" href="#top" aria-label="The Grid command home">
+          <span class="brand-mark"><img src="/meridian-mark-192.png" alt="" /></span>
+          <span>
+            <span class="brand-name">The Grid</span>
+            <span class="brand-subtitle">Active Port: ${esc(project.name)}</span>
+          </span>
+        </a>
+        <div class="header-meta" aria-label="Grid status">
+          <button class="install-btn" id="btn-install" type="button" hidden>Install</button>
+          <span class="meta-pill pwa-state" id="pwa-state">Online</span>
+          <span class="meta-pill">PR #7</span>
+          <span class="meta-pill">Hybrid live</span>
+          <span class="meta-pill muted">Passive close off</span>
+        </div>
+      </header>
+
+      <nav class="grid-nav" aria-label="Grid navigation">
+        ${GRID_NAV_ITEMS.map((item) => `
+          <button
+            class="grid-nav-btn${activeView === item.id ? ' is-active' : ''}"
+            type="button"
+            data-grid-view="${item.id}"
+            aria-pressed="${activeView === item.id}"
+          >${esc(item.label)}</button>
+        `).join('')}
+      </nav>
+
+      <main class="layout grid-layout" id="top">
+        ${renderActiveView(project)}
+      </main>
+
+      <div class="toast" id="toast">Copied to clipboard</div>
+
+      <footer class="bottom-bar">
+        <span class="last-saved" id="last-saved">Not yet saved</span>
+        <button class="btn btn-secondary" id="btn-reset" type="button">Reset Meridian Port</button>
+        <button class="btn btn-primary" id="btn-export" type="button">Export Summary</button>
+      </footer>
     </div>
+  `;
 
-    <header class="app-header">
-      <a class="brand" href="#top" aria-label="Meridian smoke test home">
-        <span class="brand-mark"><img src="/meridian-mark-192.png" alt="" /></span>
-        <span>
-          <span class="brand-name">Meridian Port</span>
-          <span class="brand-subtitle">Hybrid Auto-Close Smoke Test</span>
-        </span>
-      </a>
-      <div class="header-meta" aria-label="Trial context">
-        <button class="install-btn" id="btn-install" type="button" hidden>Install</button>
-        <span class="meta-pill pwa-state" id="pwa-state">Online</span>
-        <span class="meta-pill">PR #7</span>
-        <span class="meta-pill">Hybrid live</span>
-        <span class="meta-pill muted">Passive close off</span>
+  attachShellListeners();
+  setupPwaControls();
+  refreshSavedTime();
+}
+
+function renderActiveView(project) {
+  if (activeView === 'ports') return renderPortsView(project);
+  if (activeView === 'audio') return renderAudioInboxView();
+  if (activeView === 'reports') return renderReportsView();
+  if (activeView === 'prompts') return renderPromptsView();
+  if (activeView === 'settings') return renderSettingsView();
+  if (activeView === 'command') return renderCommandView(project);
+  return renderMeridianPortView();
+}
+
+function renderCommandView(project) {
+  const count = totals();
+  const next = nextUncheckedItem();
+  const latestReport = reports[0] || getMeridianExports()[0];
+  return `
+    <section class="hero grid-command-hero" aria-labelledby="grid-title">
+      <div class="hero-copy">
+        <div class="eyebrow">Operations shell</div>
+        <h1 id="grid-title">The Grid</h1>
+        <p>Structured project operations for prompts, smoke evidence, reports, and audio. Telegram stays the fast command line; this is the current-state dashboard.</p>
       </div>
-    </header>
+      <aside class="status-panel" aria-label="Active port">
+        <div class="flag-row"><span>Active Port</span><strong>${esc(project.name)}</strong></div>
+        <div class="flag-row critical"><span>Mode</span><strong>Local-first MVP</strong></div>
+        <div class="flag-note">No Supabase writes, no Hermes API, no backend ingest.</div>
+      </aside>
+    </section>
 
-    <main class="layout" id="top">
-      <section class="hero" aria-labelledby="page-title">
-        <div class="hero-copy">
-          <div class="eyebrow">Davis / trusted cohort only</div>
-          <h1 id="page-title">Scoped hybrid auto-close validation</h1>
-          <p>
-            Hapag-Lloyd IDT Export Rail smoke checklist for confirming passive
-            close behavior while keeping the broad passive close flag off.
-          </p>
-        </div>
-        <aside class="status-panel" aria-label="Feature flags">
-          <div class="flag-row">
-            <span>HYBRID_AUTO_CLOSE_LIVE</span>
-            <strong>true</strong>
+    <section class="grid-card-grid" id="command-cards">
+      ${renderCommandCards(count, next, latestReport)}
+    </section>
+  `;
+}
+
+function renderCommandCards(count = totals(), next = nextUncheckedItem(), latestReport = reports[0] || getMeridianExports()[0]) {
+  return `
+    <article class="grid-card">
+      <div class="panel-label">Active Port</div>
+      <h2>Meridian Port</h2>
+      <p>Readiness, smoke tests, evidence, prompts, reports, and audio for Meridian PR #7.</p>
+      <button class="btn btn-primary" type="button" data-grid-view="ports">Open Port</button>
+    </article>
+    <article class="grid-card">
+      <div class="panel-label">Fresh Clone Audit Verdict</div>
+      <h2>${esc(activeAuditLabel())}</h2>
+      <p>Gate live smoke with source-of-truth PR evidence.</p>
+    </article>
+    <article class="grid-card">
+      <div class="panel-label">Smoke Progress</div>
+      <h2>${count.tested}/${count.total} tested</h2>
+      <p>${count.pass} pass, ${count.fail} fail, ${count.blocked} blocked, ${count.nt} not tested.</p>
+    </article>
+    <article class="grid-card">
+      <div class="panel-label">Next Unchecked Item</div>
+      <h2>${next ? esc(`${next.section.num}.${next.section.items.indexOf(next.item) + 1}`) : 'Done'}</h2>
+      <p>${next ? fmtText(next.item.text) : 'All smoke checklist items have a recorded status.'}</p>
+    </article>
+    <article class="grid-card">
+      <div class="panel-label">Final Decision</div>
+      <h2>${esc(activeDecisionLabel())}</h2>
+      <p>Decision is kept inside Meridian Port so the port can spin off later.</p>
+    </article>
+    <article class="grid-card">
+      <div class="panel-label">Latest Export</div>
+      <h2>${latestReport?.createdAt ? new Date(latestReport.createdAt).toLocaleString() : 'None yet'}</h2>
+      <p>Exports are saved locally under Grid report storage.</p>
+    </article>
+    <article class="grid-card">
+      <div class="panel-label">Audio Inbox</div>
+      <h2>${inboxCountForPort()} item${inboxCountForPort() === 1 ? '' : 's'}</h2>
+      <p>Manual/local report inbox. No server ingress yet.</p>
+      <button class="btn btn-secondary" type="button" data-grid-view="audio">Open Audio</button>
+    </article>
+  `;
+}
+
+function refreshCommandCards() {
+  const container = document.getElementById('command-cards');
+  if (container) container.innerHTML = renderCommandCards();
+}
+
+function renderPortsView(project) {
+  return `
+    <section class="hero" aria-labelledby="ports-title">
+      <div class="hero-copy">
+        <div class="eyebrow">Project ports</div>
+        <h1 id="ports-title">Ports</h1>
+        <p>Each project gets a maintenance surface with status, next action, evidence, prompts, reports, and inbox flow.</p>
+      </div>
+      <aside class="status-panel">
+        <div class="flag-row"><span>Selected</span><strong>${esc(project.name)}</strong></div>
+        <div class="flag-note">Meridian Port is isolated as the first module.</div>
+      </aside>
+    </section>
+    <section class="grid-card-grid">
+      ${PROJECT_REGISTRY.map((entry) => `
+        <article class="grid-card port-card${entry.id === activePortId ? ' is-active' : ''}">
+          <div class="panel-label">${esc(entry.status)}</div>
+          <h2>${esc(entry.name)}</h2>
+          <p>${esc(entry.summary)}</p>
+          <div class="port-tags">
+            ${entry.sections.map((section) => `<span>${esc(section)}</span>`).join('')}
           </div>
-          <div class="flag-row critical">
-            <span>PASSIVE_CLOSE_LIVE</span>
-            <strong>false</strong>
-          </div>
-          <div class="flag-note">Must remain false through the entire trial.</div>
-        </aside>
-      </section>
+          <button class="btn btn-primary" type="button" data-port-id="${entry.id}">Open ${esc(entry.name)}</button>
+        </article>
+      `).join('')}
+    </section>
+    ${renderMeridianPortView()}
+  `;
+}
 
-      ${renderSmokeRecord()}
-
-      ${renderSmokeSession()}
-
-      <section class="progress-panel" aria-label="Smoke test progress">
-        <div class="progress-head">
-          <div>
-            <div class="panel-label">Smoke Test Progress</div>
-            <div class="progress-title" id="progress-title">0 of 0 tested</div>
-          </div>
-          <div class="progress-percent" id="progress-percent">0%</div>
-        </div>
-        <div class="progress-track" aria-hidden="true">
-          <div class="progress-fill" id="progress-fill"></div>
-        </div>
-        <div class="progress-counts" id="progress-counts"></div>
-        <div class="progress-actions" aria-label="Checklist view controls">
-          <div class="filter-group" role="group" aria-label="Filter checklist items">
-            ${FILTERS.map((filter) => `
-              <button
-                class="filter-btn${filter.id === currentFilter ? ' is-active' : ''}"
-                type="button"
-                data-filter="${filter.id}"
-                aria-pressed="${filter.id === currentFilter}"
-              >${filter.label}</button>
-            `).join('')}
-          </div>
-          <button class="btn btn-secondary btn-next" id="btn-next-open" type="button">
-            Next unchecked
-          </button>
-        </div>
-        <div class="readiness-summary" id="readiness-summary"></div>
-      </section>
-
-      <div class="section-nav" id="section-nav" aria-label="Checklist sections"></div>
-      <div class="filter-empty" id="filter-empty" hidden>No checklist items match the current view.</div>
-      <div id="section-container"></div>
-      <div id="audio-inbox-container"></div>
-    </main>
-
-    <div class="toast" id="toast">Copied to clipboard</div>
-
-    <footer class="bottom-bar">
-      <span class="last-saved" id="last-saved">Not yet saved</span>
-      <button class="btn btn-secondary" id="btn-reset" type="button">Reset</button>
-      <button class="btn btn-primary" id="btn-export" type="button">Export Summary</button>
-    </footer>
+function renderMeridianPortView() {
+  return `
+    <section class="scope-banner port-scope" role="status">
+      <div class="scope-kicker">Meridian Port guardrail</div>
+      <div>This port validates PR #7 only. Do not use it as broad <code>PASSIVE_CLOSE_LIVE</code> readiness evidence.</div>
+      <button class="audit-copy-btn" id="btn-audit-top" type="button">Copy Final Fresh Clone Audit Prompt</button>
+    </section>
+    <section class="hero" aria-labelledby="page-title">
+      <div class="hero-copy">
+        <div class="eyebrow">Davis / trusted cohort only</div>
+        <h1 id="page-title">Scoped hybrid auto-close validation</h1>
+        <p>Hapag-Lloyd IDT Export Rail smoke checklist for confirming passive close behavior while keeping the broad passive close flag off.</p>
+      </div>
+      <aside class="status-panel" aria-label="Feature flags">
+        <div class="flag-row"><span>HYBRID_AUTO_CLOSE_LIVE</span><strong>true</strong></div>
+        <div class="flag-row critical"><span>PASSIVE_CLOSE_LIVE</span><strong>false</strong></div>
+        <div class="flag-note">Must remain false through the entire trial.</div>
+      </aside>
+    </section>
+    ${renderSmokeRecord()}
+    ${renderSmokeSession()}
+    ${renderProgressPanel()}
+    <div class="section-nav" id="section-nav" aria-label="Meridian checklist sections"></div>
+    <div class="filter-empty" id="filter-empty" hidden>No checklist items match the current view.</div>
+    <div id="section-container"></div>
   `;
 }
 
@@ -594,12 +368,10 @@ function renderSmokeRecord() {
         <span class="record-status">Approved artifact</span>
       </div>
       <div class="record-grid">
-        ${SMOKE_RECORD_SECTIONS.map((section) => `
+        ${MERIDIAN_SMOKE_RECORD_SECTIONS.map((section) => `
           <article class="record-group">
             <h3>${esc(section.title)}</h3>
-            <ol>
-              ${section.items.map((item) => `<li>${fmtText(item)}</li>`).join('')}
-            </ol>
+            <ol>${section.items.map((item) => `<li>${fmtText(item)}</li>`).join('')}</ol>
           </article>
         `).join('')}
       </div>
@@ -608,8 +380,8 @@ function renderSmokeRecord() {
 }
 
 function renderSmokeSession() {
-  const audit = state.audit || defaultState().audit;
-  const run = state.run || defaultState().run;
+  const audit = meridianState.audit || defaultMeridianState().audit;
+  const run = meridianState.run || defaultMeridianState().run;
   return `
     <section class="session-panel" aria-labelledby="session-title">
       <div class="session-head">
@@ -617,33 +389,21 @@ function renderSmokeSession() {
           <div class="panel-label">Smoke Session</div>
           <h2 id="session-title">Fresh clone gate and run metadata</h2>
         </div>
-        <button class="btn btn-audit" id="btn-audit-session" type="button">
-          Copy Final Fresh Clone Audit Prompt
-        </button>
+        <button class="btn btn-audit" id="btn-audit-session" type="button">Copy Final Fresh Clone Audit Prompt</button>
       </div>
       <div class="run-fields">
-        ${RUN_FIELDS.map((field) => `
+        ${MERIDIAN_RUN_FIELDS.map((field) => `
           <label class="run-field" for="run-${field.key}">
             <span>${esc(field.label)}</span>
-            <input
-              id="run-${field.key}"
-              data-run-field="${field.key}"
-              value="${esc(run[field.key] || '')}"
-              placeholder="${esc(field.placeholder)}"
-            />
+            <input id="run-${field.key}" data-run-field="${field.key}" value="${esc(run[field.key] || '')}" placeholder="${esc(field.placeholder)}" />
           </label>
         `).join('')}
       </div>
       <div class="audit-verdict-group" role="group" aria-label="Fresh clone audit verdict">
-        ${AUDIT_OPTS.map((opt) => {
+        ${MERIDIAN_AUDIT_OPTS.map((opt) => {
           const selected = audit.verdict === opt.id;
           return `
-            <button
-              class="audit-option${selected ? ` ${opt.cls}` : ''}"
-              type="button"
-              data-audit-verdict="${opt.id}"
-              aria-pressed="${selected}"
-            >
+            <button class="audit-option${selected ? ` ${opt.cls}` : ''}" type="button" data-audit-verdict="${opt.id}" aria-pressed="${selected}">
               <span>${esc(opt.label)}</span>
               <small>${esc(opt.desc)}</small>
             </button>
@@ -651,32 +411,47 @@ function renderSmokeSession() {
         }).join('')}
       </div>
       <label class="audit-notes-label" for="audit-notes">Fresh clone audit notes</label>
-      <textarea
-        class="audit-notes"
-        id="audit-notes"
-        placeholder="Paste audit verdict, blocker summary, or cited evidence links"
-      >${esc(audit.notes || '')}</textarea>
+      <textarea class="audit-notes" id="audit-notes" placeholder="Paste audit verdict, blocker summary, or cited evidence links">${esc(audit.notes || '')}</textarea>
     </section>
   `;
 }
 
-function renderSections() {
+function renderProgressPanel() {
+  return `
+    <section class="progress-panel" aria-label="Smoke test progress">
+      <div class="progress-head">
+        <div>
+          <div class="panel-label">Smoke Test Progress</div>
+          <div class="progress-title" id="progress-title">0 of 0 tested</div>
+        </div>
+        <div class="progress-percent" id="progress-percent">0%</div>
+      </div>
+      <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-counts" id="progress-counts"></div>
+      <div class="progress-actions" aria-label="Checklist view controls">
+        <div class="filter-group" role="group" aria-label="Filter checklist items">
+          ${MERIDIAN_FILTERS.map((filter) => `
+            <button class="filter-btn${filter.id === currentFilter ? ' is-active' : ''}" type="button" data-filter="${filter.id}" aria-pressed="${filter.id === currentFilter}">${esc(filter.label)}</button>
+          `).join('')}
+        </div>
+        <button class="btn btn-secondary btn-next" id="btn-next-open" type="button">Next unchecked</button>
+      </div>
+      <div class="readiness-summary" id="readiness-summary"></div>
+    </section>
+  `;
+}
+
+function renderMeridianSections() {
   const nav = document.getElementById('section-nav');
   const container = document.getElementById('section-container');
+  if (!nav || !container) return;
 
-  nav.innerHTML = SECTIONS.map((section) => `
-    <a class="section-link" href="#sec-${section.id}">
-      <span>${section.num}</span>${esc(section.short)}
-    </a>
-  `).join('') + `
-    <a class="section-link" href="#audio-inbox">
-      <span>A</span>Audio
-    </a>
-  `;
+  nav.innerHTML = MERIDIAN_SECTIONS.map((section) => `
+    <a class="section-link" href="#sec-${section.id}"><span>${section.num}</span>${esc(section.short)}</a>
+  `).join('');
 
   let html = '';
-
-  SECTIONS.forEach((section) => {
+  MERIDIAN_SECTIONS.forEach((section) => {
     html += `
       <section class="section" id="sec-${section.id}">
         <div class="section-head">
@@ -691,9 +466,7 @@ function renderSections() {
 
     section.items.forEach((item, idx) => {
       const status = getStatus(item.id);
-      const notes = getNotes(item.id);
       const cardClass = `item-card${status !== 'not-tested' ? ` s-${status}` : ''}`;
-
       html += `
         <article class="${cardClass}" id="card-${item.id}" data-item-id="${item.id}" data-status="${status}">
           <div class="item-row">
@@ -708,19 +481,13 @@ function renderSections() {
           </div>
           <label class="notes-wrap">
             <span class="sr-only">Notes for item ${idx + 1}</span>
-            <textarea class="notes-input" id="ta-${item.id}" placeholder="Notes" rows="1">${esc(notes)}</textarea>
+            <textarea class="notes-input" id="ta-${item.id}" placeholder="Notes" rows="1">${esc(getNotes(item.id))}</textarea>
           </label>
           <div class="evidence-grid" aria-label="Evidence for item ${idx + 1}">
-            ${ITEM_FIELD_DEFS.map((field) => `
+            ${MERIDIAN_ITEM_FIELD_DEFS.map((field) => `
               <label class="evidence-field" for="${field.key}-${item.id}">
                 <span>${esc(field.label)}</span>
-                <input
-                  id="${field.key}-${item.id}"
-                  data-item-field="${field.key}"
-                  data-item-id="${item.id}"
-                  value="${esc(getItemField(item.id, field.key))}"
-                  placeholder="${esc(field.placeholder)}"
-                />
+                <input id="${field.key}-${item.id}" data-item-field="${field.key}" data-item-id="${item.id}" value="${esc(getItemField(item.id, field.key))}" placeholder="${esc(field.placeholder)}" />
               </label>
             `).join('')}
           </div>
@@ -733,99 +500,23 @@ function renderSections() {
 
   html += renderDecision();
   container.innerHTML = html;
-
-  SECTIONS.forEach((section) => {
-    section.items.forEach((item) => attachItemListeners(item.id));
-  });
+  MERIDIAN_SECTIONS.forEach((section) => section.items.forEach((item) => attachItemListeners(item.id)));
   attachDecisionListeners();
-}
-
-function renderAudioInbox() {
-  const container = document.getElementById('audio-inbox-container');
-  if (!container) return;
-
-  const items = state.audio || [];
-  container.innerHTML = `
-    <section class="section audio-inbox" id="audio-inbox" aria-labelledby="audio-inbox-title">
-      <div class="section-head">
-        <div>
-          <div class="section-number">Audio Inbox</div>
-          <h2 id="audio-inbox-title">Tron Audio Reports</h2>
-        </div>
-        <span class="section-tally">${items.length} report${items.length === 1 ? '' : 's'}</span>
-      </div>
-      <div class="audio-upload-row">
-        <label class="audio-upload" for="audio-upload-input">
-          <span>Add audio reports</span>
-          <input id="audio-upload-input" type="file" accept="audio/*" multiple />
-        </label>
-        <p>Audio files stay local in this browser through IndexedDB. Transcripts save with the checklist state.</p>
-      </div>
-      <div class="audio-list">
-        ${items.length ? items.map((item) => renderAudioItem(item)).join('') : `
-          <div class="audio-empty">
-            No Tron audio reports yet. Add audio files to build the local inbox for this smoke run.
-          </div>
-        `}
-      </div>
-    </section>
-  `;
-
-  attachAudioInboxListeners();
-}
-
-function renderAudioItem(item) {
-  const src = audioUrls.get(item.id) || '';
-  return `
-    <article class="audio-card" data-audio-id="${esc(item.id)}">
-      <div class="audio-card-head">
-        <div>
-          <div class="audio-name">${esc(item.name)}</div>
-          <div class="audio-added">Added ${new Date(item.addedAt).toLocaleString()}</div>
-        </div>
-        <button class="btn btn-secondary btn-audio-remove" type="button" data-audio-remove="${esc(item.id)}">
-          Remove
-        </button>
-      </div>
-      <div class="audio-controls-row">
-        <audio controls preload="metadata" src="${esc(src)}"></audio>
-        <button class="btn btn-secondary btn-audio-stop" type="button" data-audio-stop="${esc(item.id)}">
-          Stop
-        </button>
-      </div>
-      <label class="audio-transcript-wrap" for="audio-transcript-${esc(item.id)}">
-        <span>Transcript</span>
-        <textarea
-          id="audio-transcript-${esc(item.id)}"
-          class="audio-transcript"
-          data-audio-transcript="${esc(item.id)}"
-          placeholder="Paste or draft the Tron audio report transcript"
-        >${esc(item.transcript || '')}</textarea>
-      </label>
-    </article>
-  `;
+  refreshProgress();
 }
 
 function mkStatusButton(itemId, status, label, current) {
   const active = current === status ? ' is-active' : '';
-  return `
-    <button
-      class="status-btn status-${status}${active}"
-      type="button"
-      data-id="${itemId}"
-      data-status="${status}"
-      aria-pressed="${current === status}"
-    >${label}</button>
-  `;
+  return `<button class="status-btn status-${status}${active}" type="button" data-id="${itemId}" data-status="${status}" aria-pressed="${current === status}">${label}</button>`;
 }
 
 function renderDecision() {
-  const decision = state.decision || { verdict: null, notes: '' };
+  const decision = meridianState.decision || { verdict: null, notes: '' };
   return `
     <section class="section decision-section" id="sec-final">
       <div class="section-head">
         <div>
-          <div class="section-number">Section ${SECTIONS.length + 1}</div>
+          <div class="section-number">Section ${MERIDIAN_SECTIONS.length + 1}</div>
           <h2>Final Decision</h2>
         </div>
       </div>
@@ -833,26 +524,15 @@ function renderDecision() {
         <div class="audit-gate">
           <div>
             <div class="audit-gate-label">Fresh clone gate</div>
-            <p>
-              Copy a focused prompt that forces PR #7 readiness evidence from
-              GitHub source of truth before any live smoke.
-            </p>
+            <p>Copy a focused prompt that forces PR #7 readiness evidence from GitHub source of truth before any live smoke.</p>
           </div>
-          <button class="btn btn-audit" id="btn-audit-decision" type="button">
-            Copy Final Fresh Clone Audit Prompt
-          </button>
+          <button class="btn btn-audit" id="btn-audit-decision" type="button">Copy Final Fresh Clone Audit Prompt</button>
         </div>
         <div class="decision-options">
-          ${DECISION_OPTS.map((opt) => {
+          ${MERIDIAN_DECISION_OPTS.map((opt) => {
             const selected = decision.verdict === opt.id;
             return `
-              <button
-                class="decision-option${selected ? ` ${opt.cls}` : ''}"
-                type="button"
-                id="decopt-${opt.id}"
-                data-verdict="${opt.id}"
-                aria-pressed="${selected}"
-              >
+              <button class="decision-option${selected ? ` ${opt.cls}` : ''}" type="button" id="decopt-${opt.id}" data-verdict="${opt.id}" aria-pressed="${selected}">
                 <span class="decision-label">${esc(opt.label)}</span>
                 <span class="decision-desc">${esc(opt.desc)}</span>
               </button>
@@ -860,26 +540,273 @@ function renderDecision() {
           }).join('')}
         </div>
         <label class="decision-notes-label" for="dec-notes">Notes / evidence links</label>
-        <textarea
-          class="decision-notes"
-          id="dec-notes"
-          placeholder="Paste links, describe failures, record evidence"
-        >${esc(decision.notes || '')}</textarea>
+        <textarea class="decision-notes" id="dec-notes" placeholder="Paste links, describe failures, record evidence">${esc(decision.notes || '')}</textarea>
       </div>
     </section>
   `;
 }
 
-function attachItemListeners(id) {
-  const card = document.getElementById(`card-${id}`);
-  if (!card) return;
+function renderAudioInboxView() {
+  return `
+    <section class="hero" aria-labelledby="audio-title">
+      <div class="hero-copy">
+        <div class="eyebrow">Manual local inbox</div>
+        <h1 id="audio-title">Audio Inbox</h1>
+        <p>Store Tron reports, transcripts, pasted notes, and browser-playable audio without Telegram playback chaining. MVP is manual import only.</p>
+      </div>
+      <aside class="status-panel">
+        <div class="flag-row"><span>Ingress</span><strong>Manual</strong></div>
+        <div class="flag-row critical"><span>Backend</span><strong>None</strong></div>
+        <div class="flag-note">Future versions can add webhook/API/local-folder ingress.</div>
+      </aside>
+    </section>
+    ${renderInboxComposer()}
+    <section class="section audio-inbox" id="audio-inbox" aria-labelledby="audio-inbox-title">
+      <div class="section-head">
+        <div>
+          <div class="section-number">Audio Inbox</div>
+          <h2 id="audio-inbox-title">Tron Audio Reports</h2>
+        </div>
+        <span class="section-tally">${inboxItems.length} item${inboxItems.length === 1 ? '' : 's'}</span>
+      </div>
+      <div class="audio-list">
+        ${inboxItems.length ? inboxItems.map((item) => renderAudioItem(item)).join('') : '<div class="audio-empty">No reports yet. Add a manual entry to start the Grid inbox.</div>'}
+      </div>
+    </section>
+  `;
+}
 
-  card.querySelectorAll('.status-btn').forEach((button) => {
+function renderInboxComposer() {
+  return `
+    <section class="session-panel" aria-labelledby="inbox-compose-title">
+      <div class="session-head">
+        <div>
+          <div class="panel-label">New Entry</div>
+          <h2 id="inbox-compose-title">Add audio/report entry</h2>
+        </div>
+      </div>
+      <div class="run-fields inbox-fields">
+        <label class="run-field" for="inbox-title"><span>Title</span><input id="inbox-title" placeholder="Tron report title" /></label>
+        <label class="run-field" for="inbox-port"><span>Port / project</span>
+          <select id="inbox-port">
+            ${PROJECT_REGISTRY.map((project) => `<option value="${project.id}" ${project.id === activePortId ? 'selected' : ''}>${esc(project.name)}</option>`).join('')}
+          </select>
+        </label>
+        <label class="run-field" for="inbox-audio-url"><span>Audio URL</span><input id="inbox-audio-url" placeholder="Optional local/object/external URL" /></label>
+        <label class="run-field audio-file-field" for="inbox-audio-file"><span>Upload audio</span><input id="inbox-audio-file" type="file" accept="audio/*" /></label>
+      </div>
+      <label class="audio-transcript-wrap" for="inbox-transcript">
+        <span>Transcript / notes</span>
+        <textarea id="inbox-transcript" class="audio-transcript" placeholder="Paste report text or transcript"></textarea>
+      </label>
+      <div class="composer-actions">
+        <button class="btn btn-primary" id="btn-add-inbox" type="button">Add Entry</button>
+        <button class="btn btn-secondary" id="btn-clear-inbox" type="button">Clear Inbox</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderAudioItem(item) {
+  const src = audioUrls.get(item.id) || item.audioUrl || '';
+  const project = getActiveProject(item.port);
+  return `
+    <article class="audio-card" data-audio-id="${esc(item.id)}">
+      <div class="audio-card-head">
+        <div>
+          <div class="audio-name">${esc(item.title || item.name || 'Untitled report')}</div>
+          <div class="audio-added">${esc(project.name)} - Added ${new Date(item.addedAt).toLocaleString()}</div>
+        </div>
+        <button class="btn btn-secondary btn-audio-remove" type="button" data-audio-remove="${esc(item.id)}">Remove</button>
+      </div>
+      ${src ? `
+        <div class="audio-controls-row">
+          <audio controls preload="metadata" src="${esc(src)}"></audio>
+          <button class="btn btn-secondary btn-audio-stop" type="button" data-audio-stop="${esc(item.id)}">Stop</button>
+        </div>
+      ` : ''}
+      <label class="audio-transcript-wrap" for="audio-transcript-${esc(item.id)}">
+        <span>Transcript / notes</span>
+        <textarea id="audio-transcript-${esc(item.id)}" class="audio-transcript" data-audio-transcript="${esc(item.id)}" placeholder="Paste or draft report transcript">${esc(item.transcript || '')}</textarea>
+      </label>
+    </article>
+  `;
+}
+
+function renderReportsView() {
+  const meridianExports = getMeridianExports();
+  const reportMap = new Map();
+  [...reports, ...meridianExports.map((entry) => ({
+    ...entry,
+    body: entry.markdown,
+    title: entry.title || 'Meridian smoke export',
+  }))].forEach((report) => reportMap.set(report.id, report));
+  const allReports = Array.from(reportMap.values())
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const latest = allReports[0];
+  return `
+    <section class="hero" aria-labelledby="reports-title">
+      <div class="hero-copy">
+        <div class="eyebrow">Local reports</div>
+        <h1 id="reports-title">Reports</h1>
+        <p>Saved/exported Meridian smoke summaries live here for copy, review, and download.</p>
+      </div>
+      <aside class="status-panel">
+        <div class="flag-row"><span>Saved</span><strong>${allReports.length}</strong></div>
+        <div class="flag-note">Reports are local browser data for MVP.</div>
+      </aside>
+    </section>
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-number">Latest Export</div>
+          <h2>${latest ? esc(latest.title || 'Report') : 'No report saved yet'}</h2>
+        </div>
+        ${latest ? `<button class="btn btn-primary" data-copy-report="${esc(latest.id)}" type="button">Copy Latest</button>` : ''}
+      </div>
+      ${latest ? `<textarea class="report-preview" readonly>${esc(latest.body || latest.markdown || '')}</textarea>` : '<div class="audio-empty">Use Export Summary from Meridian Port to save the first report.</div>'}
+    </section>
+    <section class="grid-card-grid">
+      ${allReports.map((report) => `
+        <article class="grid-card">
+          <div class="panel-label">${new Date(report.createdAt).toLocaleString()}</div>
+          <h2>${esc(report.title || 'Report')}</h2>
+          <p>${esc(getActiveProject(report.port || DEFAULT_PORT).name)}</p>
+          <button class="btn btn-secondary" data-copy-report="${esc(report.id)}" type="button">Copy</button>
+        </article>
+      `).join('')}
+    </section>
+  `;
+}
+
+function renderPromptsView() {
+  return `
+    <section class="hero" aria-labelledby="prompts-title">
+      <div class="hero-copy">
+        <div class="eyebrow">Prompt library</div>
+        <h1 id="prompts-title">Prompts</h1>
+        <p>Reusable Meridian Port prompts. Source-code audit belongs here, not inside the live smoke checklist.</p>
+      </div>
+      <aside class="status-panel">
+        <div class="flag-row"><span>Prompt Cards</span><strong>${MERIDIAN_PROMPTS.length}</strong></div>
+        <div class="flag-note">Copy prompts into Telegram/Codex as needed.</div>
+      </aside>
+    </section>
+    <section class="grid-card-grid">
+      ${MERIDIAN_PROMPTS.map((prompt) => `
+        <article class="grid-card prompt-card">
+          <div class="panel-label">Meridian Port</div>
+          <h2>${esc(prompt.title)}</h2>
+          <p>${esc(prompt.description)}</p>
+          <textarea class="prompt-preview" readonly>${esc(prompt.getText())}</textarea>
+          <button class="btn btn-primary" data-copy-prompt="${esc(prompt.id)}" type="button">Copy Prompt</button>
+        </article>
+      `).join('')}
+    </section>
+  `;
+}
+
+function renderSettingsView() {
+  return `
+    <section class="hero" aria-labelledby="settings-title">
+      <div class="hero-copy">
+        <div class="eyebrow">Local-first controls</div>
+        <h1 id="settings-title">Settings</h1>
+        <p>Export/import Grid data, inspect namespace keys, and clear local MVP state. No backend is involved.</p>
+      </div>
+      <aside class="status-panel">
+        <div class="flag-row"><span>Storage</span><strong>localStorage + IndexedDB</strong></div>
+        <div class="flag-note">Static PWA cannot receive live Tron messages without future ingress.</div>
+      </aside>
+    </section>
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-number">Grid Data</div>
+          <h2>Export / import / clear</h2>
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button class="btn btn-primary" id="btn-grid-export-json" type="button">Export Grid JSON</button>
+        <label class="audio-upload settings-import" for="grid-import-file">
+          <span>Import Grid JSON</span>
+          <input id="grid-import-file" type="file" accept="application/json,.json" />
+        </label>
+        <button class="btn btn-secondary" id="btn-grid-clear" type="button">Clear Local Grid Data</button>
+      </div>
+      <div class="settings-key-list">
+        ${GRID_STORAGE_KEYS.map((key) => `<code>${esc(key)}</code>`).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function attachShellListeners() {
+  document.querySelectorAll('[data-grid-view]').forEach((button) => {
+    button.addEventListener('click', () => setActiveView(button.dataset.gridView));
+  });
+  document.querySelectorAll('[data-port-id]').forEach((button) => {
     button.addEventListener('click', () => {
-      setStatus(id, button.dataset.status);
+      activeView = 'ports';
+      localStorage.setItem(GRID_KEYS.activeView, activeView);
+      setActivePort(button.dataset.portId);
     });
   });
 
+  document.getElementById('btn-reset')?.addEventListener('click', resetMeridianPort);
+  document.getElementById('btn-export')?.addEventListener('click', exportSummary);
+  document.getElementById('btn-audit-top')?.addEventListener('click', copyAuditPrompt);
+  document.getElementById('btn-next-open')?.addEventListener('click', jumpToNextOpen);
+  document.getElementById('btn-audit-session')?.addEventListener('click', copyAuditPrompt);
+  document.getElementById('btn-add-inbox')?.addEventListener('click', addInboxEntry);
+  document.getElementById('btn-clear-inbox')?.addEventListener('click', clearInbox);
+  document.getElementById('btn-grid-export-json')?.addEventListener('click', exportGridJson);
+  document.getElementById('grid-import-file')?.addEventListener('change', importGridJson);
+  document.getElementById('btn-grid-clear')?.addEventListener('click', clearAllGridData);
+
+  attachMeridianListeners();
+  attachInboxListeners();
+  attachReportListeners();
+  attachPromptListeners();
+}
+
+function attachMeridianListeners() {
+  document.querySelectorAll('.filter-btn').forEach((button) => {
+    button.addEventListener('click', () => setFilter(button.dataset.filter));
+  });
+  document.querySelectorAll('[data-run-field]').forEach((input) => {
+    input.addEventListener('input', () => {
+      meridianState.run[input.dataset.runField] = input.value;
+      persistMeridian();
+    });
+  });
+  document.querySelectorAll('[data-audit-verdict]').forEach((button) => {
+    button.addEventListener('click', () => {
+      meridianState.audit.verdict = button.dataset.auditVerdict;
+      persistMeridian();
+      refreshAuditVerdict();
+      refreshProgress();
+      refreshCommandCards();
+    });
+  });
+  const auditNotes = document.getElementById('audit-notes');
+  if (auditNotes) {
+    auditNotes.addEventListener('input', () => {
+      meridianState.audit.notes = auditNotes.value;
+      persistMeridian();
+      autoResize(auditNotes);
+    });
+    autoResize(auditNotes);
+  }
+  renderMeridianSections();
+}
+
+function attachItemListeners(id) {
+  const card = document.getElementById(`card-${id}`);
+  if (!card) return;
+  card.querySelectorAll('.status-btn').forEach((button) => {
+    button.addEventListener('click', () => setStatus(id, button.dataset.status));
+  });
   const textarea = document.getElementById(`ta-${id}`);
   if (textarea) {
     textarea.addEventListener('input', () => {
@@ -888,145 +815,143 @@ function attachItemListeners(id) {
     });
     autoResize(textarea);
   }
-
   card.querySelectorAll('[data-item-field]').forEach((input) => {
-    input.addEventListener('input', () => {
-      setItemField(id, input.dataset.itemField, input.value);
-    });
+    input.addEventListener('input', () => setItemField(id, input.dataset.itemField, input.value));
   });
-}
-
-function attachSmokeSessionListeners() {
-  document.getElementById('btn-audit-session')?.addEventListener('click', copyAuditPrompt);
-
-  document.querySelectorAll('[data-run-field]').forEach((input) => {
-    input.addEventListener('input', () => {
-      state.run[input.dataset.runField] = input.value;
-      persist();
-    });
-  });
-
-  document.querySelectorAll('[data-audit-verdict]').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.audit.verdict = button.dataset.auditVerdict;
-      persist();
-      refreshAuditVerdict();
-      refreshProgress();
-    });
-  });
-
-  const auditNotes = document.getElementById('audit-notes');
-  if (auditNotes) {
-    auditNotes.addEventListener('input', () => {
-      state.audit.notes = auditNotes.value;
-      persist();
-      autoResize(auditNotes);
-    });
-    autoResize(auditNotes);
-  }
 }
 
 function attachDecisionListeners() {
   document.getElementById('btn-audit-decision')?.addEventListener('click', copyAuditPrompt);
-
   document.querySelectorAll('.decision-option').forEach((button) => {
     button.addEventListener('click', () => {
-      state.decision.verdict = button.dataset.verdict;
-      persist();
+      meridianState.decision.verdict = button.dataset.verdict;
+      persistMeridian();
       refreshDecision();
+      refreshCommandCards();
     });
   });
-
   const notes = document.getElementById('dec-notes');
   if (notes) {
     notes.addEventListener('input', () => {
-      state.decision.notes = notes.value;
-      persist();
+      meridianState.decision.notes = notes.value;
+      persistMeridian();
       autoResize(notes);
     });
     autoResize(notes);
   }
 }
 
-function attachAudioInboxListeners() {
-  const upload = document.getElementById('audio-upload-input');
-  upload?.addEventListener('change', async () => {
-    await addAudioFiles(Array.from(upload.files || []));
-    upload.value = '';
-  });
-
+function attachInboxListeners() {
   document.querySelectorAll('[data-audio-transcript]').forEach((textarea) => {
     textarea.addEventListener('input', () => {
-      const id = textarea.dataset.audioTranscript;
-      const item = state.audio.find((entry) => entry.id === id);
+      const item = inboxItems.find((entry) => entry.id === textarea.dataset.audioTranscript);
       if (!item) return;
       item.transcript = textarea.value;
-      persist();
+      persistInbox(inboxItems);
       autoResize(textarea);
     });
     autoResize(textarea);
   });
-
   document.querySelectorAll('[data-audio-stop]').forEach((button) => {
     button.addEventListener('click', () => {
-      const card = button.closest('.audio-card');
-      const audio = card?.querySelector('audio');
+      const audio = button.closest('.audio-card')?.querySelector('audio');
       if (!audio) return;
       audio.pause();
       audio.currentTime = 0;
     });
   });
-
   document.querySelectorAll('[data-audio-remove]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      await removeAudioItem(button.dataset.audioRemove);
+    button.addEventListener('click', async () => removeInboxItem(button.dataset.audioRemove));
+  });
+}
+
+function attachReportListeners() {
+  document.querySelectorAll('[data-copy-report]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const report = findReport(button.dataset.copyReport);
+      if (report) copyToClipboard(report.body || report.markdown || '', 'Report copied');
     });
   });
 }
 
-async function addAudioFiles(files) {
-  const audioFiles = files.filter((file) => file.type.startsWith('audio/'));
-  if (!audioFiles.length) return;
+function attachPromptListeners() {
+  document.querySelectorAll('[data-copy-prompt]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const prompt = MERIDIAN_PROMPTS.find((entry) => entry.id === button.dataset.copyPrompt);
+      if (prompt) copyToClipboard(prompt.getText(), 'Prompt copied');
+    });
+  });
+}
 
-  for (const file of audioFiles) {
-    const id = makeAudioId(file);
+function findReport(id) {
+  return reports.find((report) => report.id === id)
+    || getMeridianExports().find((report) => report.id === id);
+}
+
+async function addInboxEntry() {
+  const title = document.getElementById('inbox-title')?.value.trim() || 'Untitled report';
+  const port = document.getElementById('inbox-port')?.value || activePortId;
+  const transcript = document.getElementById('inbox-transcript')?.value || '';
+  const audioUrl = document.getElementById('inbox-audio-url')?.value.trim() || '';
+  const file = document.getElementById('inbox-audio-file')?.files?.[0] || null;
+  const id = window.crypto?.randomUUID ? window.crypto.randomUUID() : `inbox-${Date.now()}`;
+  let hasBlob = false;
+
+  if (file) {
     try {
       await putAudioBlob(id, file);
       setAudioUrl(id, file);
-      state.audio.push({
-        id,
-        name: file.name,
-        transcript: '',
-        addedAt: new Date().toISOString(),
-      });
+      hasBlob = true;
     } catch {
       showToastMessage(`Could not save ${file.name}`);
     }
   }
 
-  persist();
-  renderAudioInbox();
+  inboxItems = [{
+    id,
+    title,
+    port,
+    transcript,
+    audioUrl,
+    hasBlob,
+    addedAt: new Date().toISOString(),
+  }, ...inboxItems];
+  persistInbox(inboxItems);
+  showToastMessage('Inbox entry added');
+  renderApp();
 }
 
-async function removeAudioItem(id) {
-  if (!id) return;
+async function removeInboxItem(id) {
   revokeAudioUrl(id);
-  state.audio = state.audio.filter((item) => item.id !== id);
+  inboxItems = inboxItems.filter((item) => item.id !== id);
   try {
     await deleteAudioBlob(id);
   } catch {
-    // Metadata removal still wins; stale blobs can be cleared by Reset.
+    // Metadata removal still wins; stale blobs can be cleared from Settings.
   }
-  persist();
-  renderAudioInbox();
+  persistInbox(inboxItems);
+  renderApp();
+}
+
+async function clearInbox() {
+  if (!window.confirm('Clear all local Audio Inbox entries?')) return;
+  revokeAllAudioUrls();
+  inboxItems = [];
+  persistInbox(inboxItems);
+  try {
+    await clearAudioStore();
+  } catch {
+    showToastMessage('Audio store could not be cleared');
+  }
+  renderApp();
 }
 
 function copyAuditPrompt() {
-  copyToClipboard(finalFreshCloneAuditPrompt());
+  copyToClipboard(finalFreshCloneAuditPrompt(), 'Audit prompt copied');
 }
 
 function setFilter(filter) {
-  currentFilter = FILTERS.some((item) => item.id === filter) ? filter : 'all';
+  currentFilter = MERIDIAN_FILTERS.some((item) => item.id === filter) ? filter : 'all';
   document.querySelectorAll('.filter-btn').forEach((button) => {
     const active = button.dataset.filter === currentFilter;
     button.classList.toggle('is-active', active);
@@ -1051,12 +976,10 @@ function applyFilter() {
     if (visible) visibleCount += 1;
   });
 
-  SECTIONS.forEach((section) => {
+  MERIDIAN_SECTIONS.forEach((section) => {
     const sectionEl = document.getElementById(`sec-${section.id}`);
     if (!sectionEl) return;
-    const hasVisibleItems = Array.from(sectionEl.querySelectorAll('.item-card'))
-      .some((card) => !card.hidden);
-    sectionEl.hidden = !hasVisibleItems;
+    sectionEl.hidden = !Array.from(sectionEl.querySelectorAll('.item-card')).some((card) => !card.hidden);
   });
 
   const empty = document.getElementById('filter-empty');
@@ -1064,16 +987,13 @@ function applyFilter() {
 }
 
 function jumpToNextOpen() {
-  const next = SECTIONS
-    .flatMap((section) => section.items)
-    .find((item) => getStatus(item.id) === 'not-tested');
+  const next = nextUncheckedItem();
   if (!next) {
     showToastMessage('All items tested');
     return;
   }
-
   if (currentFilter !== 'all' && currentFilter !== 'open') setFilter('all');
-  const card = document.getElementById(`card-${next.id}`);
+  const card = document.getElementById(`card-${next.item.id}`);
   card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   card?.querySelector('.status-btn')?.focus({ preventScroll: true });
 }
@@ -1082,7 +1002,6 @@ function refreshItemCard(id) {
   const status = getStatus(id);
   const card = document.getElementById(`card-${id}`);
   if (!card) return;
-
   card.className = `item-card${status !== 'not-tested' ? ` s-${status}` : ''}`;
   card.dataset.status = status;
   card.querySelectorAll('.status-btn').forEach((button) => {
@@ -1096,8 +1015,8 @@ function refreshItemCard(id) {
 
 function refreshDecision() {
   document.querySelectorAll('.decision-option').forEach((button) => {
-    const opt = DECISION_OPTS.find((item) => item.id === button.dataset.verdict);
-    const selected = state.decision.verdict === button.dataset.verdict;
+    const opt = MERIDIAN_DECISION_OPTS.find((item) => item.id === button.dataset.verdict);
+    const selected = meridianState.decision.verdict === button.dataset.verdict;
     button.className = `decision-option${selected && opt ? ` ${opt.cls}` : ''}`;
     button.setAttribute('aria-pressed', String(selected));
   });
@@ -1105,23 +1024,11 @@ function refreshDecision() {
 
 function refreshAuditVerdict() {
   document.querySelectorAll('[data-audit-verdict]').forEach((button) => {
-    const opt = AUDIT_OPTS.find((item) => item.id === button.dataset.auditVerdict);
-    const selected = state.audit.verdict === button.dataset.auditVerdict;
+    const opt = MERIDIAN_AUDIT_OPTS.find((item) => item.id === button.dataset.auditVerdict);
+    const selected = meridianState.audit.verdict === button.dataset.auditVerdict;
     button.className = `audit-option${selected && opt ? ` ${opt.cls}` : ''}`;
     button.setAttribute('aria-pressed', String(selected));
   });
-}
-
-function refreshSmokeSession() {
-  document.querySelectorAll('[data-run-field]').forEach((input) => {
-    input.value = state.run?.[input.dataset.runField] || '';
-  });
-  const auditNotes = document.getElementById('audit-notes');
-  if (auditNotes) {
-    auditNotes.value = state.audit?.notes || '';
-    autoResize(auditNotes);
-  }
-  refreshAuditVerdict();
 }
 
 function refreshProgress() {
@@ -1130,7 +1037,6 @@ function refreshProgress() {
   const title = document.getElementById('progress-title');
   const pct = document.getElementById('progress-percent');
   const counts = document.getElementById('progress-counts');
-
   if (fill) fill.style.width = `${count.pct}%`;
   if (title) title.textContent = `${count.tested} of ${count.total} tested`;
   if (pct) pct.textContent = `${count.pct}%`;
@@ -1142,10 +1048,9 @@ function refreshProgress() {
       ${mkCountPill('nt', count.nt, 'not tested')}
     `;
   }
-
   updateReadinessSummary(count);
 
-  SECTIONS.forEach((section) => {
+  MERIDIAN_SECTIONS.forEach((section) => {
     const tally = document.getElementById(`tally-${section.id}`);
     if (!tally) return;
     let tested = 0;
@@ -1157,35 +1062,25 @@ function refreshProgress() {
       if (status === 'fail') fail += 1;
       if (status === 'blocked') blocked += 1;
     });
-    const warnings = [
-      fail ? `${fail} fail` : '',
-      blocked ? `${blocked} blocked` : '',
-    ].filter(Boolean);
+    const warnings = [fail ? `${fail} fail` : '', blocked ? `${blocked} blocked` : ''].filter(Boolean);
     tally.textContent = `${tested}/${section.items.length}${warnings.length ? ` - ${warnings.join(', ')}` : ''}`;
   });
-
   applyFilter();
 }
 
 function mkCountPill(cls, value, label) {
-  return `
-    <span class="count-pill count-${cls}">
-      <span class="count-dot"></span>
-      <span>${value} ${label}</span>
-    </span>
-  `;
+  return `<span class="count-pill count-${cls}"><span class="count-dot"></span><span>${value} ${label}</span></span>`;
 }
 
 function updateReadinessSummary(count) {
   const summary = document.getElementById('readiness-summary');
   if (!summary) return;
-
   let tone = 'neutral';
   let text = `${count.nt} items remain unchecked.`;
-  if (state.audit?.verdict === 'hold') {
+  if (meridianState.audit?.verdict === 'hold') {
     tone = 'attention';
     text = 'Fresh clone audit is HOLD - BLOCKER FOUND. Do not start live smoke.';
-  } else if (state.audit?.verdict !== 'ready') {
+  } else if (meridianState.audit?.verdict !== 'ready') {
     tone = 'attention';
     text = 'Fresh clone audit verdict is not recorded as READY FOR DAVIS-ONLY SMOKE.';
   } else if (count.fail || count.blocked) {
@@ -1195,7 +1090,6 @@ function updateReadinessSummary(count) {
     tone = 'ready';
     text = 'All checklist items are tested. Record the final decision before smoke.';
   }
-
   summary.className = `readiness-summary ${tone}`;
   summary.textContent = text;
 }
@@ -1205,121 +1099,68 @@ function autoResize(el) {
   el.style.height = `${el.scrollHeight}px`;
 }
 
-function plainText(text) {
-  return text.replace(/`([^`]+)`/g, '$1');
-}
-
-function itemEvidence(id) {
-  const item = state.items[id] || {};
-  return {
-    caseNumber: item.caseNumber || '',
-    evidenceLink: item.evidenceLink || '',
-    testedAt: item.testedAt || '',
-    notes: item.notes || '',
-  };
-}
-
-function appendEvidence(md, evidence) {
-  const lines = [];
-  if (evidence.caseNumber.trim()) lines.push(`  - Case: ${evidence.caseNumber.trim()}`);
-  if (evidence.evidenceLink.trim()) lines.push(`  - Evidence: ${evidence.evidenceLink.trim()}`);
-  if (evidence.testedAt.trim()) lines.push(`  - Timestamp: ${evidence.testedAt.trim()}`);
-  if (evidence.notes.trim()) lines.push(`  - Notes: ${evidence.notes.trim().replace(/\n/g, '\n    ')}`);
-  return lines.length ? `${md}${lines.join('\n')}\n` : `${md}  - Evidence: _(none recorded)_\n`;
-}
-
 function exportSummary() {
-  const now = new Date().toISOString();
-  const decision = state.decision || { verdict: null, notes: '' };
-  const option = DECISION_OPTS.find((item) => item.id === decision.verdict);
-  const audit = state.audit || defaultState().audit;
-  const auditOpt = AUDIT_OPTS.find((item) => item.id === audit.verdict);
-  const run = state.run || defaultState().run;
-  const count = totals();
+  const markdown = buildMeridianExport({ state: meridianState, totals: totals() });
+  const meridianExport = saveMeridianExport(markdown);
+  copyToClipboard(markdown, 'Summary copied and saved');
+  showToastMessage(`Export saved ${new Date(meridianExport.createdAt).toLocaleTimeString()}`);
+  refreshCommandCards();
+}
 
-  let md = '';
-  md += '# Meridian Port - Hybrid Auto-Close Smoke Test - PR #7\n';
-  md += `**Exported:** ${now}\n\n`;
-  md += '## Context\n';
-  md += '- HYBRID_AUTO_CLOSE_LIVE: true (PR #7)\n';
-  md += '- PASSIVE_CLOSE_LIVE: false (must remain off)\n';
-  md += '- Scope: Davis / trusted cohort only - Hapag-Lloyd IDT Export Rail\n\n';
-  md += '## Smoke Session\n';
-  md += `- Tester: ${run.tester?.trim() || '_Not recorded_'}\n`;
-  md += `- Environment URL: ${run.environmentUrl?.trim() || '_Not recorded_'}\n`;
-  md += `- Fresh clone audit verdict: ${auditOpt ? auditOpt.label : '_Not recorded_'}\n`;
-  if (audit.notes?.trim()) md += `- Fresh clone audit notes: ${audit.notes.trim().replace(/\n/g, '\n  ')}\n`;
-  md += '\n';
-  md += '## Summary\n';
-  md += `- Pass: ${count.pass}\n`;
-  md += `- Fail: ${count.fail}\n`;
-  md += `- Blocked: ${count.blocked}\n`;
-  md += `- Not tested: ${count.nt}\n`;
-  md += `- Tested: ${count.tested}/${count.total} (${count.pct}%)\n\n`;
-  md += '## Final Decision\n';
-  md += `**Verdict:** ${option ? option.label : '_Not yet recorded_'}\n`;
-  if (decision.notes?.trim()) md += `**Notes:** ${decision.notes.trim()}\n`;
-  md += '\n';
+function exportGridJson() {
+  const data = JSON.stringify(exportGridData(), null, 2);
+  copyToClipboard(data, 'Grid JSON copied');
+}
 
-  const badItems = [];
-  SECTIONS.forEach((section) => {
-    section.items.forEach((item) => {
-      const status = getStatus(item.id);
-      if (status === 'fail' || status === 'blocked') {
-        badItems.push({ section, item, status, evidence: itemEvidence(item.id) });
-      }
-    });
-  });
+function importGridJson(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      importGridData(JSON.parse(reader.result));
+      meridianState = loadMeridianState();
+      inboxItems = loadInbox();
+      reports = loadReports();
+      showToastMessage('Grid data imported');
+      renderApp();
+    } catch (error) {
+      showToastMessage(error.message);
+    }
+  };
+  reader.readAsText(file);
+}
 
-  md += '## Failed / Blocked Items\n\n';
-  if (!badItems.length) {
-    md += '_None. All tested items passed or are not yet tested._\n\n';
-  } else {
-    let lastSectionId = null;
-    badItems.forEach(({ section, item, status, evidence }) => {
-      if (lastSectionId !== section.id) {
-        md += `### ${section.num}. ${section.title}\n`;
-        lastSectionId = section.id;
-      }
-      md += `- ${status.toUpperCase()} - ${plainText(item.text)}\n`;
-      md = appendEvidence(md, evidence);
-    });
-    md += '\n';
+async function clearAllGridData() {
+  if (!window.confirm('Clear all local Grid data, including inbox audio blobs?')) return;
+  revokeAllAudioUrls();
+  clearGridLocalData();
+  clearReports();
+  clearMeridianExports();
+  clearMeridianState();
+  localStorage.removeItem(LEGACY_MERIDIAN_KEY);
+  try {
+    await clearAudioStore();
+  } catch {
+    showToastMessage('Audio store could not be cleared');
   }
+  activeView = DEFAULT_VIEW;
+  activePortId = DEFAULT_PORT;
+  meridianState = defaultMeridianState();
+  inboxItems = [];
+  reports = [];
+  renderApp();
+}
 
-  const evidenceItems = [];
-  SECTIONS.forEach((section) => {
-    section.items.forEach((item) => {
-      const evidence = itemEvidence(item.id);
-      const hasEvidence = ['caseNumber', 'evidenceLink', 'testedAt', 'notes']
-        .some((key) => evidence[key]?.trim());
-      if (hasEvidence && getStatus(item.id) !== 'not-tested') {
-        evidenceItems.push({ section, item, status: getStatus(item.id), evidence });
-      }
-    });
-  });
-
-  md += '## Recorded Smoke Evidence\n\n';
-  if (!evidenceItems.length) {
-    md += '_No item evidence recorded._\n\n';
-  } else {
-    evidenceItems.forEach(({ section, item, status, evidence }) => {
-      md += `- ${section.num}.${section.items.indexOf(item) + 1} ${status.toUpperCase()} - ${plainText(item.text)}\n`;
-      md = appendEvidence(md, evidence);
-    });
-    md += '\n';
-  }
-
-  md += '---\n';
-  md += '*This checklist validates the scoped hybrid auto-close trial only.*\n';
-  md += '*Do not use as proof of broad PASSIVE_CLOSE_LIVE readiness.*\n';
-
-  copyToClipboard(md);
+async function resetMeridianPort() {
+  if (!window.confirm('Reset Meridian Port checklist state? Audio Inbox and Grid reports remain unless cleared in Settings.')) return;
+  meridianState = defaultMeridianState();
+  clearMeridianState();
+  renderApp();
 }
 
 function copyToClipboard(text, toastText = 'Copied to clipboard') {
   const showToast = () => showToastMessage(toastText);
-
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(text).then(showToast).catch(() => fallbackCopy(text, showToast));
   } else {
@@ -1333,55 +1174,6 @@ function showToastMessage(message) {
   toast.textContent = message;
   toast.classList.add('show');
   window.setTimeout(() => toast.classList.remove('show'), 2400);
-}
-
-function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      updatePwaState('Offline cache unavailable');
-    });
-  });
-}
-
-function setupPwaControls() {
-  const installButton = document.getElementById('btn-install');
-  updatePwaState(navigator.onLine ? 'Online' : 'Offline ready');
-
-  window.addEventListener('online', () => updatePwaState('Online'));
-  window.addEventListener('offline', () => updatePwaState('Offline ready'));
-
-  window.addEventListener('beforeinstallprompt', (event) => {
-    event.preventDefault();
-    deferredInstallPrompt = event;
-    if (installButton) installButton.hidden = false;
-  });
-
-  window.addEventListener('appinstalled', () => {
-    deferredInstallPrompt = null;
-    if (installButton) installButton.hidden = true;
-    updatePwaState('Installed');
-  });
-
-  installButton?.addEventListener('click', async () => {
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-    installButton.hidden = true;
-  });
-
-  if (window.matchMedia('(display-mode: standalone)').matches && installButton) {
-    installButton.hidden = true;
-    updatePwaState('Installed');
-  }
-}
-
-function updatePwaState(label) {
-  const stateEl = document.getElementById('pwa-state');
-  if (!stateEl) return;
-  stateEl.textContent = label;
-  stateEl.classList.toggle('is-offline', !navigator.onLine);
 }
 
 function fallbackCopy(text, onDone) {
@@ -1400,59 +1192,104 @@ function fallbackCopy(text, onDone) {
   onDone();
 }
 
-async function resetAll() {
-  const ok = window.confirm(
-    'Reset all checklist state?\n\nThis clears every status, evidence field, audit verdict, audio report, note, and final decision.'
-  );
-  if (!ok) return;
-  revokeAllAudioUrls();
-  state = defaultState();
-  try {
-    await clearAudioStore();
-  } catch {
-    showToastMessage('Audio store could not be cleared');
-  }
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Ignore storage cleanup failures.
-  }
-  renderSections();
-  renderAudioInbox();
-  refreshProgress();
-  refreshSavedTime();
-  refreshSmokeSession();
-}
-
 function refreshSavedTime() {
   const saved = document.getElementById('last-saved');
   if (!saved) return;
-  saved.textContent = state.savedAt
-    ? `Saved ${new Date(state.savedAt).toLocaleTimeString()}`
+  saved.textContent = meridianState.savedAt
+    ? `Saved ${new Date(meridianState.savedAt).toLocaleTimeString()}`
     : 'Not yet saved';
 }
 
-async function init() {
-  await hydrateAudioUrls();
-  renderShell();
-  renderSections();
-  renderAudioInbox();
-  refreshProgress();
-  refreshSavedTime();
-  setupPwaControls();
-  registerServiceWorker();
-  attachShellListeners();
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      updatePwaState('Offline cache unavailable');
+    });
+  });
 }
 
-function attachShellListeners() {
-  document.getElementById('btn-reset')?.addEventListener('click', resetAll);
-  document.getElementById('btn-export')?.addEventListener('click', exportSummary);
-  document.getElementById('btn-audit-top')?.addEventListener('click', copyAuditPrompt);
-  document.getElementById('btn-next-open')?.addEventListener('click', jumpToNextOpen);
-  attachSmokeSessionListeners();
-  document.querySelectorAll('.filter-btn').forEach((button) => {
-    button.addEventListener('click', () => setFilter(button.dataset.filter));
+function setupPwaControls() {
+  const installButton = document.getElementById('btn-install');
+  updatePwaState(navigator.onLine ? 'Online' : 'Offline ready');
+
+  if (deferredInstallPrompt && installButton) installButton.hidden = false;
+  if (!pwaEventsBound) {
+    pwaEventsBound = true;
+    window.addEventListener('online', () => updatePwaState('Online'));
+    window.addEventListener('offline', () => updatePwaState('Offline ready'));
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      const currentButton = document.getElementById('btn-install');
+      if (currentButton) currentButton.hidden = false;
+    });
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      const currentButton = document.getElementById('btn-install');
+      if (currentButton) currentButton.hidden = true;
+      updatePwaState('Installed');
+    });
+  }
+  installButton?.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    installButton.hidden = true;
   });
+  if (window.matchMedia('(display-mode: standalone)').matches && installButton) {
+    installButton.hidden = true;
+    updatePwaState('Installed');
+  }
+}
+
+function updatePwaState(label) {
+  const stateEl = document.getElementById('pwa-state');
+  if (!stateEl) return;
+  stateEl.textContent = label;
+  stateEl.classList.toggle('is-offline', !navigator.onLine);
+}
+
+function makeAudioId() {
+  return window.crypto?.randomUUID ? window.crypto.randomUUID() : `audio-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function setAudioUrl(id, blob) {
+  revokeAudioUrl(id);
+  const url = URL.createObjectURL(blob);
+  audioUrls.set(id, url);
+  return url;
+}
+
+function revokeAudioUrl(id) {
+  const existing = audioUrls.get(id);
+  if (existing) URL.revokeObjectURL(existing);
+  audioUrls.delete(id);
+}
+
+function revokeAllAudioUrls() {
+  Array.from(audioUrls.keys()).forEach((id) => revokeAudioUrl(id));
+}
+
+async function hydrateAudioUrls() {
+  await Promise.all(inboxItems.map(async (item) => {
+    if (!item.hasBlob) return;
+    try {
+      const blob = await getAudioBlob(item.id);
+      if (blob) setAudioUrl(item.id, blob);
+    } catch {
+      // Missing blobs leave metadata visible for cleanup.
+    }
+  }));
+}
+
+async function init() {
+  localStorage.setItem(GRID_KEYS.activePort, activePortId);
+  localStorage.setItem(GRID_KEYS.activeView, activeView);
+  await hydrateAudioUrls();
+  renderApp();
+  registerServiceWorker();
 }
 
 init();
