@@ -107,6 +107,65 @@ const DECISION_OPTS = [
   },
 ];
 
+function finalFreshCloneAuditPrompt() {
+  return [
+    'Run tools now.',
+    '',
+    'Perform a Final Fresh Clone Readiness Audit for Meridian PR #7 controlled hybrid auto-close smoke readiness.',
+    '',
+    'Scope:',
+    '- Focus only on PR #7 readiness for the Davis-only controlled hybrid auto-close smoke.',
+    '- Do not re-audit all of Meridian.',
+    '- Do not treat Codex claims, this working tree, stale local state, or Supabase migration history alone as source of truth.',
+    '- Use GitHub source of truth from a fresh clone or fresh PR checkout.',
+    '- Cite exact file paths and line numbers for every code claim.',
+    '- Quote the relevant code lines for every required safety claim.',
+    '',
+    'Hard prohibitions:',
+    '- Do not touch Supabase.',
+    '- Do not apply migrations.',
+    '- Do not flip flags.',
+    '- Do not deploy anything.',
+    '- Do not make code changes.',
+    '',
+    'Layer 1 - PR / code state:',
+    '- Start from a fresh clone or fresh PR checkout.',
+    '- Confirm PR #7 HEAD and base.',
+    '- Confirm changed files.',
+    '- Confirm only public/ct-widget.js changed.',
+    '- Confirm PASSIVE_CLOSE_LIVE=false.',
+    '- Confirm HYBRID_AUTO_CLOSE_LIVE=true.',
+    '- Confirm the hybridAccessConfirmed gate remains intact.',
+    '',
+    'Layer 2 - Passive-close safety path:',
+    '- Quote the close gate.',
+    '- Quote the tracked-case invariant.',
+    '- Quote resolved/reclassified-only promotion.',
+    '- Quote low-confidence shadow-only behavior.',
+    '- Quote no-tracked-case close-nothing behavior.',
+    '',
+    'Layer 3 - Complete-during-reclassification fix:',
+    '- Confirm reclass_in_progress_at_complete blocker exists on main / PR branch.',
+    '- Run or inspect the passive harness branch if needed.',
+    '- Confirm the synthetic harness is green for signature_reclass_at_complete.',
+    '- Explicitly state whether the manual corpus is active or inactive.',
+    '',
+    'Layer 4 - Operational readiness:',
+    '- State remaining non-code gates:',
+    '  - actual schema/RPC present,',
+    '  - holdout or reconciliation posture,',
+    '  - cohort scope,',
+    '  - smoke checklist ready.',
+    '',
+    'Return format:',
+    '- Keep it focused and concise.',
+    '- Include cited evidence by file path and line number.',
+    '- End with exactly one binary smoke verdict:',
+    '  READY FOR DAVIS-ONLY SMOKE',
+    '  HOLD - BLOCKER FOUND',
+  ].join('\n');
+}
+
 let state = loadState();
 
 function defaultState() {
@@ -204,6 +263,9 @@ function renderShell() {
         This checklist validates PR #7 only. Do not use it as broad
         <code>PASSIVE_CLOSE_LIVE</code> readiness evidence.
       </div>
+      <button class="audit-copy-btn" id="btn-audit-top" type="button">
+        Copy Final Fresh Clone Audit Prompt
+      </button>
     </div>
 
     <header class="app-header">
@@ -358,6 +420,18 @@ function renderDecision() {
         </div>
       </div>
       <div class="decision-card">
+        <div class="audit-gate">
+          <div>
+            <div class="audit-gate-label">Fresh clone gate</div>
+            <p>
+              Copy a focused prompt that forces PR #7 readiness evidence from
+              GitHub source of truth before any live smoke.
+            </p>
+          </div>
+          <button class="btn btn-audit" id="btn-audit-decision" type="button">
+            Copy Final Fresh Clone Audit Prompt
+          </button>
+        </div>
         <div class="decision-options">
           ${DECISION_OPTS.map((opt) => {
             const selected = decision.verdict === opt.id;
@@ -407,6 +481,8 @@ function attachItemListeners(id) {
 }
 
 function attachDecisionListeners() {
+  document.getElementById('btn-audit-decision')?.addEventListener('click', copyAuditPrompt);
+
   document.querySelectorAll('.decision-option').forEach((button) => {
     button.addEventListener('click', () => {
       state.decision.verdict = button.dataset.verdict;
@@ -424,6 +500,10 @@ function attachDecisionListeners() {
     });
     autoResize(notes);
   }
+}
+
+function copyAuditPrompt() {
+  copyToClipboard(finalFreshCloneAuditPrompt());
 }
 
 function refreshItemCard(id) {
@@ -623,6 +703,7 @@ function init() {
 
   document.getElementById('btn-reset')?.addEventListener('click', resetAll);
   document.getElementById('btn-export')?.addEventListener('click', exportSummary);
+  document.getElementById('btn-audit-top')?.addEventListener('click', copyAuditPrompt);
 }
 
 init();
