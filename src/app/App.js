@@ -17,7 +17,7 @@ import {
   MERIDIAN_DECISION_OPTS,
   MERIDIAN_SECTIONS,
 } from '../ports/meridian/meridianChecklistData.js';
-import { MERIDIAN_PROMPTS, finalFreshCloneAuditPrompt } from '../ports/meridian/meridianAuditPrompt.js';
+import { MERIDIAN_PROMPTS, finalFreshCloneAuditPrompt } from '../ports/meridian/meridianPrompts.js';
 import {
   clearMeridianExports,
   clearMeridianState,
@@ -64,6 +64,7 @@ function setActivePort(portId) {
 function persistMeridian() {
   persistMeridianState(meridianState);
   refreshSavedTime();
+  refreshGridStatusBar();
 }
 
 function getStatus(id) {
@@ -100,6 +101,7 @@ function setStatus(id, status) {
   refreshItemCard(id);
   refreshProgress();
   refreshCommandCards();
+  refreshGridStatusBar();
 }
 
 function setNotes(id, notes) {
@@ -157,6 +159,16 @@ function inboxCountForPort(portId = activePortId) {
   return inboxItems.filter((item) => item.port === portId).length;
 }
 
+function shellStatus() {
+  return {
+    auditLabel: activeAuditLabel(),
+    decisionLabel: activeDecisionLabel(),
+    inboxCount: inboxCountForPort(),
+    savedAt: meridianState.savedAt,
+    totals: totals(),
+  };
+}
+
 function renderApp() {
   const project = getActiveProject(activePortId);
   document.getElementById('app').innerHTML = renderGridShell({
@@ -166,6 +178,7 @@ function renderApp() {
     navItems: GRID_NAV_ITEMS,
     project,
     projects: PROJECT_REGISTRY,
+    status: shellStatus(),
   });
 
   attachShellListeners();
@@ -306,13 +319,17 @@ function renderAudioInboxView() {
       <div class="hero-copy">
         <div class="eyebrow">Manual local inbox</div>
         <h1 id="audio-title">Audio Inbox</h1>
-        <p>Store Tron reports, transcripts, pasted notes, and browser-playable audio without Telegram playback chaining. MVP is manual import only.</p>
+        <p>Telegram audio can chain playback through older messages. The Grid keeps controlled browser playback, uploaded files, URLs, and report references in one local-first inbox.</p>
       </div>
       <aside class="status-panel">
         <div class="flag-row"><span>Ingress</span><strong>Manual</strong></div>
         <div class="flag-row critical"><span>Backend</span><strong>None</strong></div>
-        <div class="flag-note">Future versions can add webhook/API/local-folder ingress.</div>
+        <div class="flag-note">Future Hermes bridge can deliver generated audio here later. Static MVP does not implement that bridge.</div>
       </aside>
+    </section>
+    <section class="grid-info-strip" aria-label="Audio Inbox scope">
+      <div><strong>Now:</strong> paste report text, store a local upload, or reference an audio URL.</div>
+      <div><strong>Later:</strong> controlled Hermes audio handoff without Telegram playback chaining.</div>
     </section>
     ${renderInboxComposer()}
     <section class="section audio-inbox" id="audio-inbox" aria-labelledby="audio-inbox-title">
@@ -544,6 +561,7 @@ function attachMeridianListeners() {
       refreshAuditVerdict();
       refreshProgress();
       refreshCommandCards();
+      refreshGridStatusBar();
     });
   });
   const auditNotes = document.getElementById('audit-notes');
@@ -585,6 +603,7 @@ function attachDecisionListeners() {
       persistMeridian();
       refreshDecision();
       refreshCommandCards();
+      refreshGridStatusBar();
     });
   });
   const notes = document.getElementById('dec-notes');
@@ -862,6 +881,7 @@ function exportSummary() {
   copyToClipboard(markdown, 'Summary copied and saved');
   showToastMessage(`Export saved ${new Date(meridianExport.createdAt).toLocaleTimeString()}`);
   refreshCommandCards();
+  refreshGridStatusBar();
 }
 
 function exportGridJson() {
@@ -955,6 +975,21 @@ function refreshSavedTime() {
   saved.textContent = meridianState.savedAt
     ? `Saved ${new Date(meridianState.savedAt).toLocaleTimeString()}`
     : 'Not yet saved';
+}
+
+function refreshGridStatusBar() {
+  const count = totals();
+  const audit = document.getElementById('shell-audit-label');
+  const progress = document.getElementById('shell-progress-label');
+  const decision = document.getElementById('shell-decision-label');
+  const inbox = document.getElementById('shell-inbox-label');
+  if (audit) audit.textContent = activeAuditLabel();
+  if (progress) progress.textContent = `${count.tested}/${count.total} tested`;
+  if (decision) decision.textContent = activeDecisionLabel();
+  if (inbox) {
+    const countForPort = inboxCountForPort();
+    inbox.textContent = `${countForPort} item${countForPort === 1 ? '' : 's'}`;
+  }
 }
 
 function registerServiceWorker() {

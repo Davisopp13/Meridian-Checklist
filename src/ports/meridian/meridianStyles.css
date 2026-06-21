@@ -1,0 +1,121 @@
+.meridian-port {
+  --meridian-panel: rgba(15, 23, 42, 0.9);
+  --meridian-panel-strong: rgba(12, 18, 31, 0.94);
+  --meridian-line: rgba(232, 84, 10, 0.25);
+  --meridian-line-strong: rgba(232, 84, 10, 0.58);
+  --meridian-amber: #e8540a;
+  --meridian-amber-soft: #fed7aa;
+  --meridian-text: rgba(255, 247, 237, 0.92);
+
+  position: relative;
+  padding: 12px;
+  border: 1px solid var(--meridian-line);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(232, 84, 10, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 84, 10, 0.028) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(9, 15, 27, 0.94));
+  background-size: 28px 28px, 28px 28px, auto;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), 0 22px 70px rgba(0, 0, 0, 0.28);
+}
+
+.meridian-port::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  border-radius: inherit;
+  background:
+    linear-gradient(135deg, rgba(232, 84, 10, 0.12), transparent 20%),
+    linear-gradient(315deg, rgba(232, 84, 10, 0.06), transparent 24%);
+  opacity: 0.72;
+}
+
+.meridian-port > * {
+  position: relative;
+}
+
+.meridian-port .hero-copy,
+.meridian-port .status-panel,
+.meridian-port .record-panel,
+.meridian-port .session-panel,
+.meridian-port .progress-panel,
+.meridian-port .section,
+.meridian-port .decision-card {
+  border-color: var(--meridian-line);
+  background:
+    linear-gradient(135deg, rgba(232, 84, 10, 0.08), transparent 34%),
+    linear-gradient(180deg, var(--meridian-panel), rgba(15, 17, 23, 0.74));
+}
+
+.meridian-port .meridian-hero .hero-copy {
+  border-left: 3px solid rgba(232, 84, 10, 0.78);
+}
+
+.meridian-bay-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  margin-bottom: 12px;
+  padding: 5px 10px 5px 6px;
+  border: 1px solid rgba(232, 84, 10, 0.3);
+  border-radius: 999px;
+  background: rgba(88, 30, 8, 0.32);
+  color: var(--meridian-amber-soft);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.meridian-bay-mark img {
+  width: 24px;
+  height: 24px;
+}
+
+.meridian-port .eyebrow,
+.meridian-port .panel-label,
+.meridian-port .section-number,
+.meridian-port .decision-notes-label {
+  color: var(--meridian-amber);
+}
+
+.meridian-port code {
+  border-color: rgba(232, 84, 10, 0.26);
+  background: rgba(232, 84, 10, 0.1);
+  color: var(--meridian-amber-soft);
+}
+
+.meridian-port .section-nav {
+  border-color: rgba(232, 84, 10, 0.24);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.meridian-port .section-link span,
+.meridian-port .filter-btn.is-active {
+  border-color: rgba(232, 84, 10, 0.42);
+  background: rgba(232, 84, 10, 0.16);
+  color: var(--meridian-amber-soft);
+}
+
+.meridian-port .progress-fill {
+  background: linear-gradient(90deg, var(--meridian-amber), #60a5fa);
+  box-shadow: 0 0 24px rgba(232, 84, 10, 0.28);
+}
+
+.meridian-port .btn-primary,
+.meridian-port .btn-export-summary {
+  background: linear-gradient(135deg, #b33d00, var(--meridian-amber));
+  box-shadow: 0 8px 22px rgba(232, 84, 10, 0.24);
+}
+
+.meridian-port .audit-option,
+.meridian-port .decision-option,
+.meridian-port .item-card,
+.meridian-port .record-group,
+.meridian-port .audio-empty,
+.meridian-port .audio-card {
+  border-color: rgba(232, 84, 10, 0.14);
+  background-color: rgba(9, 13, 24, 0.62);
+}

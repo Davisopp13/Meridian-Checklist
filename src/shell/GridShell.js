@@ -1,4 +1,5 @@
 import { renderGridNav } from './GridNav.js';
+import { renderGridStatusBar } from './GridStatusBar.js';
 import { renderPortSwitcher } from './PortSwitcher.js';
 import { esc } from '../shared/components/text.js';
 
@@ -9,6 +10,7 @@ export function renderGridShell({
   navItems,
   project,
   projects,
+  status,
 }) {
   return `
     <div class="grid-shell">
@@ -38,11 +40,7 @@ export function renderGridShell({
 
       <div class="toast" id="toast">Copied to clipboard</div>
 
-      <footer class="bottom-bar">
-        <span class="last-saved" id="last-saved">Not yet saved</span>
-        <button class="btn btn-secondary" id="btn-reset" type="button">Reset Meridian Port</button>
-        <button class="btn btn-primary" id="btn-export" type="button">Export Summary</button>
-      </footer>
+      ${renderGridStatusBar({ activeProject: project, ...status })}
     </div>
   `;
 }

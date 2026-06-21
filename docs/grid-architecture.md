@@ -32,9 +32,17 @@ The smoke checklist remains focused on live Salesforce/widget smoke testing. Sou
 ## Source Layout
 
 - `src/app` owns app state orchestration and view selection.
-- `src/shell` owns the Grid shell, navigation, and port switcher.
-- `src/ports/meridian` owns Meridian Port rendering, data, prompts, storage, and export format.
+- `src/shell` owns the Grid shell, command dock navigation, port switcher, and command-center status bar.
+- `src/ports/meridian` owns Meridian Port rendering, namespaced Meridian styles, data, prompts, storage, and export format.
 - `src/shared` is reserved for cross-port components, storage helpers, export helpers, and audio utilities.
+
+Meridian rendering is split by operational concern:
+
+- `MeridianOverview.js`
+- `MeridianAudit.js`
+- `MeridianSmokeChecklist.js`
+- `MeridianReports.js`
+- `meridianStyles.css`
 
 ## Local-First MVP Storage
 
