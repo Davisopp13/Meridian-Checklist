@@ -1,26 +1,35 @@
 import { renderGridNav } from './GridNav.js';
 import { renderGridStatusBar } from './GridStatusBar.js';
-import { renderPortSwitcher } from './PortSwitcher.js';
 import { esc } from '../shared/components/text.js';
 
+function renderModuleMark(module) {
+  if (module?.icon) {
+    return `
+      <span class="brand-module-icon" aria-hidden="true">
+        <img src="${esc(module.icon)}" alt="" />
+      </span>
+    `;
+  }
+  return '<span class="grid-brand-glyph" aria-hidden="true"></span>';
+}
+
 export function renderGridShell({
-  activePortId,
-  activeView,
-  activeModuleName,
+  activeModule,
+  activeModuleId,
   content,
-  navItems,
+  modules,
   project,
-  projects,
   status,
 }) {
-  const moduleSuffix = activeModuleName ? ` / ${esc(activeModuleName)}` : '';
+  const moduleSuffix = activeModule?.name ? ` / ${esc(activeModule.name)}` : '';
+  const isMeridianModule = activeModuleId === 'meridian-port';
 
   return `
     <div class="grid-shell">
       <header class="grid-header">
         <div class="grid-header-top">
           <a class="brand grid-brand" href="#top" aria-label="The Grid command home">
-            <span class="grid-brand-glyph" aria-hidden="true"></span>
+            ${renderModuleMark(activeModule)}
             <span>
               <span class="brand-name">The Grid</span>
               <span class="brand-subtitle">Human command surface${moduleSuffix}</span>
@@ -35,11 +44,13 @@ export function renderGridShell({
             </span>
           </div>
         </div>
-        ${renderGridNav({ items: navItems, activeView })}
+        ${renderGridNav({
+          items: modules.map((module) => ({ id: module.id, label: module.name })),
+          activeModuleId,
+        })}
       </header>
 
-      ${renderPortSwitcher({ projects, activePortId, status })}
-      ${renderGridStatusBar({ activeProject: project, ...status })}
+      ${isMeridianModule ? renderGridStatusBar({ activeProject: project, ...status }) : ''}
 
       <main class="layout grid-layout" id="top">
         ${content}

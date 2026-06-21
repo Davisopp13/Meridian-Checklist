@@ -1,6 +1,5 @@
 import '../styles.css';
-import { GRID_NAV_ITEMS } from '../grid/navigation/navigation.js';
-import { PROJECT_REGISTRY, getActiveProject } from '../grid/projectRegistry/projectRegistry.js';
+import { MODULE_REGISTRY, getFallbackModule, getModule } from '../grid/moduleRegistry/moduleRegistry.js';
 import { GRID_KEYS, GRID_STORAGE_KEYS, LEGACY_MERIDIAN_KEY } from '../grid/settings/storageKeys.js';
 import { exportGridData, importGridData, clearGridLocalData } from '../grid/settings/gridData.js';
 import { loadReports, clearReports } from '../grid/reports/reportsStorage.js';
@@ -36,13 +35,26 @@ import {
 import { renderGridShell } from '../shell/GridShell.js';
 import { esc, fmtText } from '../shared/components/text.js';
 
-const DEFAULT_PORT = 'meridian-port';
+const DEFAULT_MODULE = 'grid-home';
 const DEFAULT_VIEW = 'command';
+const GRID_HOME_VIEWS = ['command', 'ports', 'audio', 'reports', 'prompts', 'settings'];
+
+function storedActiveModuleId() {
+  const stored = localStorage.getItem(GRID_KEYS.activeModule)
+    || localStorage.getItem(GRID_KEYS.activePort)
+    || DEFAULT_MODULE;
+  return getModule(stored)?.id || DEFAULT_MODULE;
+}
+
+function storedActiveView() {
+  const stored = localStorage.getItem(GRID_KEYS.activeView) || DEFAULT_VIEW;
+  return GRID_HOME_VIEWS.includes(stored) ? stored : DEFAULT_VIEW;
+}
 
 let currentFilter = 'all';
 let deferredInstallPrompt = null;
-let activeView = localStorage.getItem(GRID_KEYS.activeView) || DEFAULT_VIEW;
-let activePortId = localStorage.getItem(GRID_KEYS.activePort) || DEFAULT_PORT;
+let activeView = storedActiveView();
+let activeModuleId = storedActiveModuleId();
 let meridianState = loadMeridianState();
 let inboxItems = loadInbox();
 let reports = loadReports();
@@ -50,14 +62,18 @@ const audioUrls = new Map();
 let pwaEventsBound = false;
 
 function setActiveView(view) {
-  activeView = GRID_NAV_ITEMS.some((item) => item.id === view) ? view : DEFAULT_VIEW;
+  activeView = GRID_HOME_VIEWS.includes(view) ? view : DEFAULT_VIEW;
+  activeModuleId = 'grid-home';
   localStorage.setItem(GRID_KEYS.activeView, activeView);
+  localStorage.setItem(GRID_KEYS.activeModule, activeModuleId);
   renderApp();
 }
 
-function setActivePort(portId) {
-  activePortId = PROJECT_REGISTRY.some((project) => project.id === portId) ? portId : DEFAULT_PORT;
-  localStorage.setItem(GRID_KEYS.activePort, activePortId);
+function setActiveModule(moduleId) {
+  activeModuleId = getModule(moduleId)?.id || DEFAULT_MODULE;
+  if (activeModuleId === 'grid-home') activeView = DEFAULT_VIEW;
+  localStorage.setItem(GRID_KEYS.activeModule, activeModuleId);
+  localStorage.setItem(GRID_KEYS.activeView, activeView);
   renderApp();
 }
 
@@ -155,7 +171,11 @@ function activeDecisionLabel() {
   return MERIDIAN_DECISION_OPTS.find((opt) => opt.id === meridianState.decision?.verdict)?.label || 'Not yet recorded';
 }
 
-function inboxCountForPort(portId = activePortId) {
+function moduleName(moduleId) {
+  return getModule(moduleId)?.name || moduleId || 'Unknown module';
+}
+
+function inboxCountForPort(portId = 'meridian-port') {
   return inboxItems.filter((item) => item.port === portId).length;
 }
 
@@ -173,16 +193,14 @@ function shellStatus() {
 }
 
 function renderApp() {
-  const project = getActiveProject(activePortId);
-  const selectedProject = PROJECT_REGISTRY.find((entry) => entry.id === activePortId);
+  const activeModule = getModule(activeModuleId) || getFallbackModule();
+  const meridianModule = getModule('meridian-port');
   document.getElementById('app').innerHTML = renderGridShell({
-    activePortId,
-    activeView,
-    activeModuleName: selectedProject?.name || '',
-    content: renderActiveView(project),
-    navItems: GRID_NAV_ITEMS,
-    project,
-    projects: PROJECT_REGISTRY,
+    activeModule,
+    activeModuleId: activeModule.id,
+    content: renderActiveModule(activeModule),
+    modules: MODULE_REGISTRY,
+    project: meridianModule,
     status: shellStatus(),
   });
 
@@ -191,7 +209,13 @@ function renderApp() {
   refreshSavedTime();
 }
 
-function renderActiveView(project) {
+function renderActiveModule(module) {
+  if (module.id === 'meridian-port') return renderMeridianPortView();
+  return renderGridHomeView();
+}
+
+function renderGridHomeView() {
+  const project = getModule('meridian-port');
   if (activeView === 'ports') return renderPortsView(project);
   if (activeView === 'audio') return renderAudioInboxView();
   if (activeView === 'reports') return renderReportsView();
@@ -213,7 +237,7 @@ function renderCommandView(project) {
         <p>Structured project operations for prompts, smoke evidence, reports, and audio. Telegram stays the fast command line; this is the current-state dashboard.</p>
       </div>
       <aside class="status-panel" aria-label="Active port">
-        <div class="flag-row"><span>Active Port</span><strong>${esc(project.name)}</strong></div>
+        <div class="flag-row"><span>Tracked Module</span><strong>${esc(project.name)}</strong></div>
         <div class="flag-row critical"><span>Mode</span><strong>Local-first MVP</strong></div>
         <div class="flag-note">No Supabase writes, no Hermes API, no backend ingest.</div>
       </aside>
@@ -231,7 +255,7 @@ function renderCommandCards(count = totals(), next = nextUncheckedItem(), latest
       <div class="panel-label">Active Port</div>
       <h2>Meridian Port</h2>
       <p>Readiness, smoke tests, evidence, prompts, reports, and audio for Meridian PR #7.</p>
-      <button class="btn btn-primary" type="button" data-grid-view="ports">Open Port</button>
+      <button class="btn btn-primary" type="button" data-module-id="meridian-port">Open Meridian</button>
     </article>
     <article class="grid-card">
       <div class="panel-label">Fresh Clone Audit Verdict</div>
@@ -286,15 +310,15 @@ function renderPortsView(project) {
       </aside>
     </section>
     <section class="grid-card-grid">
-      ${PROJECT_REGISTRY.map((entry) => `
-        <article class="grid-card port-card${entry.id === activePortId ? ' is-active' : ''}">
+      ${MODULE_REGISTRY.filter((entry) => entry.id !== 'grid-home').map((entry) => `
+        <article class="grid-card port-card${entry.id === activeModuleId ? ' is-active' : ''}">
           <div class="panel-label">${esc(entry.status)}</div>
           <h2>${esc(entry.name)}</h2>
           <p>${esc(entry.summary)}</p>
           <div class="port-tags">
             ${entry.sections.map((section) => `<span>${esc(section)}</span>`).join('')}
           </div>
-          <button class="btn btn-primary" type="button" data-port-id="${entry.id}">Open ${esc(entry.name)}</button>
+          <button class="btn btn-primary" type="button" data-module-id="${entry.id}">Open ${esc(entry.name)}</button>
         </article>
       `).join('')}
     </section>
@@ -363,9 +387,9 @@ function renderInboxComposer() {
       </div>
       <div class="run-fields inbox-fields">
         <label class="run-field" for="inbox-title"><span>Title</span><input id="inbox-title" placeholder="Tron report title" /></label>
-        <label class="run-field" for="inbox-port"><span>Port / project</span>
+        <label class="run-field" for="inbox-port"><span>Module / project</span>
           <select id="inbox-port">
-            ${PROJECT_REGISTRY.map((project) => `<option value="${project.id}" ${project.id === activePortId ? 'selected' : ''}>${esc(project.name)}</option>`).join('')}
+            ${MODULE_REGISTRY.filter((module) => module.id !== 'grid-home').map((module) => `<option value="${module.id}" ${module.id === 'meridian-port' ? 'selected' : ''}>${esc(module.name)}</option>`).join('')}
           </select>
         </label>
         <label class="run-field" for="inbox-audio-url"><span>Audio URL</span><input id="inbox-audio-url" placeholder="Optional local/object/external URL" /></label>
@@ -385,7 +409,7 @@ function renderInboxComposer() {
 
 function renderAudioItem(item) {
   const src = audioUrls.get(item.id) || item.audioUrl || '';
-  const project = getActiveProject(item.port);
+  const project = getModule(item.port) || getModule('meridian-port');
   return `
     <article class="audio-card" data-audio-id="${esc(item.id)}">
       <div class="audio-card-head">
@@ -447,7 +471,7 @@ function renderReportsView() {
         <article class="grid-card">
           <div class="panel-label">${new Date(report.createdAt).toLocaleString()}</div>
           <h2>${esc(report.title || 'Report')}</h2>
-          <p>${esc(getActiveProject(report.port || DEFAULT_PORT).name)}</p>
+          <p>${esc(moduleName(report.port || 'meridian-port'))}</p>
           <button class="btn btn-secondary" data-copy-report="${esc(report.id)}" type="button">Copy</button>
         </article>
       `).join('')}
@@ -521,15 +545,10 @@ function attachShellListeners() {
   document.querySelectorAll('[data-grid-view]').forEach((button) => {
     button.addEventListener('click', () => setActiveView(button.dataset.gridView));
   });
-  document.querySelectorAll('[data-port-id]').forEach((button) => {
+  document.querySelectorAll('[data-module-id]').forEach((button) => {
     button.addEventListener('click', () => {
-      activeView = 'ports';
-      localStorage.setItem(GRID_KEYS.activeView, activeView);
-      setActivePort(button.dataset.portId);
+      setActiveModule(button.dataset.moduleId);
     });
-  });
-  document.getElementById('port-switcher-select')?.addEventListener('change', (event) => {
-    setActivePort(event.target.value);
   });
 
   document.getElementById('btn-reset')?.addEventListener('click', resetMeridianPort);
@@ -671,7 +690,7 @@ function findReport(id) {
 
 async function addInboxEntry() {
   const title = document.getElementById('inbox-title')?.value.trim() || 'Untitled report';
-  const port = document.getElementById('inbox-port')?.value || activePortId;
+  const port = document.getElementById('inbox-port')?.value || 'meridian-port';
   const transcript = document.getElementById('inbox-transcript')?.value || '';
   const audioUrl = document.getElementById('inbox-audio-url')?.value.trim() || '';
   const file = document.getElementById('inbox-audio-file')?.files?.[0] || null;
@@ -901,6 +920,8 @@ function importGridJson(event) {
   reader.onload = () => {
     try {
       importGridData(JSON.parse(reader.result));
+      activeModuleId = storedActiveModuleId();
+      activeView = storedActiveView();
       meridianState = loadMeridianState();
       inboxItems = loadInbox();
       reports = loadReports();
@@ -927,7 +948,7 @@ async function clearAllGridData() {
     showToastMessage('Audio store could not be cleared');
   }
   activeView = DEFAULT_VIEW;
-  activePortId = DEFAULT_PORT;
+  activeModuleId = DEFAULT_MODULE;
   meridianState = defaultMeridianState();
   inboxItems = [];
   reports = [];
@@ -1086,7 +1107,8 @@ async function hydrateAudioUrls() {
 }
 
 async function init() {
-  localStorage.setItem(GRID_KEYS.activePort, activePortId);
+  if (!getModule(activeModuleId)) activeModuleId = DEFAULT_MODULE;
+  localStorage.setItem(GRID_KEYS.activeModule, activeModuleId);
   localStorage.setItem(GRID_KEYS.activeView, activeView);
   await hydrateAudioUrls();
   renderApp();

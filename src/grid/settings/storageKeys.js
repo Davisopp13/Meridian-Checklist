@@ -1,4 +1,5 @@
 export const GRID_KEYS = {
+  activeModule: 'grid:activeModule',
   activePort: 'grid:activePort',
   activeView: 'grid:activeView',
   inbox: 'grid:inbox',

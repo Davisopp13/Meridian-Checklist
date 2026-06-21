@@ -2,23 +2,28 @@
 
 The Grid is the top-level local-first operations shell for Davis's projects. It is not a replacement for Hermes. Hermes remains the agent/runtime system; The Grid is the structured human command surface for current project state, evidence, reports, prompts, and local audio/report intake.
 
-## Shell And Ports
+## Shell And Modules
 
 The Grid owns shared shell concerns:
 
-- top-level navigation
-- active project / port selection
+- top-level module switching
+- active module selection
 - global audio inbox metadata
 - saved reports
 - prompt library surfaces
 - local data export/import
 - settings and namespace visibility
 
-Each project gets a Port. A Port should keep its data, language, prompts, export format, and maintenance workflow isolated enough that it can later be spun off into a standalone tool.
+Each project gets a module inside The Grid. A module should keep its data, language, prompts, export format, and maintenance workflow isolated enough that it can later be spun off into a standalone tool.
+
+The first two top-level modules are:
+
+- `Grid Home` for Grid-owned overview and shell utilities
+- `Meridian Port` for Meridian-specific operations
 
 ## Meridian Port
 
-Meridian Port is the first Port. It owns Meridian-specific readiness work:
+Meridian Port is the first project module. It owns Meridian-specific readiness work:
 
 - fresh-clone audit prompt flow
 - PR #7 scoped hybrid auto-close smoke checklist
@@ -31,8 +36,9 @@ The smoke checklist remains focused on live Salesforce/widget smoke testing. Sou
 
 ## Source Layout
 
-- `src/app` owns app state orchestration and view selection.
-- `src/shell` owns the Grid shell, command dock navigation, port switcher, and command-center status bar.
+- `src/app` owns app state orchestration and module/view selection.
+- `src/grid/moduleRegistry` owns top-level module registration.
+- `src/shell` owns the Grid shell, module tabs, and command-center status bar.
 - `src/ports/meridian` owns Meridian Port rendering, namespaced Meridian styles, data, prompts, storage, and export format.
 - `src/shared` is reserved for cross-port components, storage helpers, export helpers, and audio utilities.
 
@@ -49,6 +55,7 @@ Meridian rendering is split by operational concern:
 The MVP has no backend and no Supabase writes. Data is stored locally using namespaced browser storage:
 
 - `grid:activePort`
+- `grid:activeModule`
 - `grid:activeView`
 - `grid:inbox`
 - `grid:reports`
@@ -58,6 +65,8 @@ The MVP has no backend and no Supabase writes. Data is stored locally using name
 - `grid:meridian-port:exports`
 
 Audio blobs are stored in IndexedDB. Metadata stays in localStorage so it can be exported with the rest of The Grid data.
+
+`grid:activePort` is retained as a legacy migration key. New module selection is stored in `grid:activeModule`.
 
 ## Audio Inbox
 

@@ -1,15 +1,15 @@
 import { esc } from '../shared/components/text.js';
 
-export function renderGridNav({ items, activeView }) {
+export function renderGridNav({ items, activeModuleId }) {
   return `
-    <nav class="grid-nav" aria-label="Grid navigation" role="tablist">
+    <nav class="grid-nav" aria-label="Module navigation" role="tablist">
       ${items.map((item) => `
         <button
-          class="grid-nav-btn${activeView === item.id ? ' is-active' : ''}${item.disabled ? ' is-disabled' : ''}"
+          class="grid-nav-btn${activeModuleId === item.id ? ' is-active' : ''}${item.disabled ? ' is-disabled' : ''}"
           type="button"
           role="tab"
-          data-grid-view="${item.id}"
-          aria-selected="${activeView === item.id}"
+          data-module-id="${item.id}"
+          aria-selected="${activeModuleId === item.id}"
           aria-controls="top"
           ${item.disabled ? 'disabled aria-disabled="true"' : ''}
         >${esc(item.label)}</button>
