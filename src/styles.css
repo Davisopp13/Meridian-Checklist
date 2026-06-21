@@ -314,38 +314,13 @@ code {
   text-transform: uppercase;
 }
 
-.grid-brand-glyph {
-  position: relative;
-  display: grid;
-  place-items: center;
+.grid-brand-logo {
   width: 42px;
   height: 42px;
   flex: 0 0 42px;
-  border: 1px solid rgba(33, 212, 255, 0.62);
-  border-radius: 6px;
-  background:
-    linear-gradient(90deg, transparent 48%, rgba(33, 212, 255, 0.64) 49%, rgba(33, 212, 255, 0.64) 51%, transparent 52%),
-    linear-gradient(0deg, transparent 48%, rgba(33, 212, 255, 0.64) 49%, rgba(33, 212, 255, 0.64) 51%, transparent 52%),
-    rgba(33, 212, 255, 0.08);
-  box-shadow: 0 0 18px rgba(33, 212, 255, 0.34), inset 0 0 18px rgba(33, 212, 255, 0.12);
-}
-
-.grid-brand-glyph::before,
-.grid-brand-glyph::after {
-  position: absolute;
-  content: "";
-  border: 1px solid rgba(33, 212, 255, 0.5);
-}
-
-.grid-brand-glyph::before {
-  inset: 8px;
-}
-
-.grid-brand-glyph::after {
-  width: 8px;
-  height: 8px;
-  background: var(--grid-cyan);
-  box-shadow: 0 0 12px var(--grid-cyan);
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: 0 0 18px rgba(33, 212, 255, 0.5);
 }
 
 .brand-module-icon {
@@ -494,6 +469,35 @@ code {
 
 .grid-info-strip strong {
   color: #e0fbff;
+}
+
+.cloud-status-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 8px;
+  background: rgba(6, 16, 29, 0.72);
+  color: var(--text-sec);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cloud-status-strip strong {
+  color: #dbeafe;
+}
+
+.cloud-status-strip.state-connected {
+  border-color: rgba(34, 197, 94, 0.32);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.cloud-status-strip.state-unwired,
+.cloud-status-strip.state-disconnected {
+  border-color: rgba(245, 158, 11, 0.34);
+  background: rgba(245, 158, 11, 0.09);
 }
 
 .port-card.is-active {
@@ -1797,7 +1801,8 @@ select {
 
   .grid-card-grid,
   .inbox-fields,
-  .grid-info-strip {
+  .grid-info-strip,
+  .cloud-status-strip {
     grid-template-columns: 1fr;
   }
 

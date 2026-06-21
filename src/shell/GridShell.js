@@ -10,7 +10,7 @@ function renderModuleMark(module) {
       </span>
     `;
   }
-  return '<span class="grid-brand-glyph" aria-hidden="true"></span>';
+  return '<img src="/tron-logo.png" alt="" class="grid-brand-logo" aria-hidden="true" />';
 }
 
 export function renderGridShell({
