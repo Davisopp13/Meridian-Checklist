@@ -160,10 +160,13 @@ function inboxCountForPort(portId = activePortId) {
 }
 
 function shellStatus() {
+  const next = nextUncheckedItem();
+  const nextIndex = next ? next.section.items.indexOf(next.item) + 1 : 0;
   return {
     auditLabel: activeAuditLabel(),
     decisionLabel: activeDecisionLabel(),
     inboxCount: inboxCountForPort(),
+    nextLabel: next ? `${next.section.num}.${nextIndex} ${next.item.text}` : 'All smoke items tested',
     savedAt: meridianState.savedAt,
     totals: totals(),
   };
@@ -980,10 +983,12 @@ function refreshSavedTime() {
 function refreshGridStatusBar() {
   const count = totals();
   const audit = document.getElementById('shell-audit-label');
+  const next = document.getElementById('shell-next-label');
   const progress = document.getElementById('shell-progress-label');
   const decision = document.getElementById('shell-decision-label');
   const inbox = document.getElementById('shell-inbox-label');
   if (audit) audit.textContent = activeAuditLabel();
+  if (next) next.textContent = shellStatus().nextLabel;
   if (progress) progress.textContent = `${count.tested}/${count.total} tested`;
   if (decision) decision.textContent = activeDecisionLabel();
   if (inbox) {

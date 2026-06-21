@@ -23,24 +23,35 @@ export function renderGridShell({
           </span>
         </a>
         <div class="header-meta" aria-label="Grid status">
-          <button class="install-btn" id="btn-install" type="button" hidden>Install</button>
-          <span class="meta-pill pwa-state" id="pwa-state">Online</span>
-          <span class="meta-pill">Command shell</span>
-          <span class="meta-pill">Local-first</span>
-          <span class="meta-pill muted">Hermes remains runtime</span>
+          <button class="install-btn" id="btn-install" type="button" hidden title="Install The Grid as a local PWA">Install app</button>
+          <span class="meta-pill" title="Browser connectivity and offline cache status">
+            <span>Connection</span>
+            <strong class="pwa-state" id="pwa-state">Online</strong>
+          </span>
+          <span class="meta-pill" title="You are using The Grid shell, not a project module">
+            <span>Layer</span>
+            <strong>Grid shell</strong>
+          </span>
+          <span class="meta-pill" title="MVP data is stored locally in this browser">
+            <span>Storage</span>
+            <strong>Local-first</strong>
+          </span>
+          <span class="meta-pill muted" title="Hermes still handles agent/runtime work outside this static PWA">
+            <span>Runtime</span>
+            <strong>Hermes</strong>
+          </span>
         </div>
       </header>
 
       ${renderGridNav({ items: navItems, activeView })}
-      ${renderPortSwitcher({ projects, activePortId })}
+      ${renderPortSwitcher({ projects, activePortId, status })}
+      ${renderGridStatusBar({ activeProject: project, ...status })}
 
       <main class="layout grid-layout" id="top">
         ${content}
       </main>
 
       <div class="toast" id="toast">Copied to clipboard</div>
-
-      ${renderGridStatusBar({ activeProject: project, ...status })}
     </div>
   `;
 }

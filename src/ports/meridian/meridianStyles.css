@@ -1,6 +1,6 @@
 .meridian-port {
-  --meridian-panel: rgba(26, 26, 46, 0.92);
-  --meridian-panel-strong: rgba(34, 35, 58, 0.9);
+  --meridian-panel: rgba(26, 26, 46, 0.94);
+  --meridian-panel-strong: rgba(34, 35, 58, 0.92);
   --meridian-field: rgba(15, 17, 23, 0.72);
   --meridian-blue: #003087;
   --meridian-blue-soft: rgba(0, 48, 135, 0.36);
@@ -14,14 +14,14 @@
 
   position: relative;
   padding: 12px;
-  border: 1px solid var(--meridian-line);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 8px;
   color: var(--meridian-text);
   font-family: "Segoe UI", Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
   background:
-    radial-gradient(circle at 12% -8%, rgba(232, 84, 10, 0.18), transparent 30%),
-    radial-gradient(circle at 88% 0%, rgba(0, 48, 135, 0.24), transparent 34%),
-    linear-gradient(135deg, #0f0f1e 0%, #111827 56%, #0f1117 100%);
+    radial-gradient(circle at 16% -10%, rgba(232, 84, 10, 0.14), transparent 32%),
+    radial-gradient(circle at 86% 0%, rgba(96, 165, 250, 0.13), transparent 30%),
+    linear-gradient(135deg, #0f0f1e 0%, #111827 54%, #0f1117 100%);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.025),
     0 22px 70px rgba(0, 0, 0, 0.34);
@@ -34,9 +34,8 @@
   content: "";
   border-radius: inherit;
   background:
-    linear-gradient(135deg, rgba(255, 138, 40, 0.16), transparent 18%),
-    linear-gradient(315deg, rgba(0, 48, 135, 0.16), transparent 28%);
-  opacity: 0.78;
+    linear-gradient(180deg, rgba(232, 84, 10, 0.08), transparent 140px);
+  opacity: 0.9;
 }
 
 .meridian-port > * {
@@ -52,9 +51,9 @@
 .meridian-port .decision-card {
   border-color: var(--meridian-line);
   background:
-    linear-gradient(135deg, rgba(232, 84, 10, 0.08), transparent 30%),
-    linear-gradient(180deg, var(--meridian-panel), rgba(15, 17, 23, 0.82));
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 138, 40, 0.06);
+    linear-gradient(180deg, var(--meridian-panel), rgba(26, 26, 46, 0.82)),
+    rgba(26, 26, 46, 0.92);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .meridian-port .meridian-hero .hero-copy {
@@ -73,8 +72,8 @@
 
 .meridian-port .hero h1 {
   max-width: 720px;
-  font-size: clamp(34px, 5vw, 56px);
-  line-height: 0.98;
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.02;
 }
 
 .meridian-port .hero p,
@@ -95,15 +94,15 @@
   min-height: 34px;
   margin-bottom: 12px;
   padding: 5px 10px 5px 6px;
-  border: 1px solid rgba(232, 84, 10, 0.3);
-  border-radius: 7px;
+  border: 1px solid rgba(232, 84, 10, 0.38);
+  border-radius: 8px;
   background:
     linear-gradient(180deg, rgba(232, 84, 10, 0.18), rgba(88, 30, 8, 0.26)),
     rgba(15, 17, 23, 0.62);
   color: var(--meridian-amber-soft);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
@@ -119,7 +118,7 @@
 .meridian-port .decision-notes-label {
   color: var(--meridian-amber-hot);
   font-family: inherit;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 
 .meridian-port code {
@@ -131,8 +130,8 @@
 .meridian-port .section-nav {
   border-color: rgba(232, 84, 10, 0.24);
   background:
-    linear-gradient(90deg, rgba(0, 48, 135, 0.14), transparent),
-    rgba(15, 17, 23, 0.74);
+    linear-gradient(90deg, rgba(232, 84, 10, 0.08), transparent),
+    rgba(26, 26, 46, 0.88);
   box-shadow: inset 0 1px 0 rgba(255, 138, 40, 0.04);
 }
 
@@ -167,7 +166,7 @@
 .meridian-port .audio-card {
   border-color: rgba(255, 138, 40, 0.16);
   background:
-    linear-gradient(180deg, rgba(34, 35, 58, 0.68), rgba(15, 17, 23, 0.72));
+    linear-gradient(180deg, rgba(34, 35, 58, 0.78), rgba(26, 26, 46, 0.82));
 }
 
 .meridian-port .record-group {

@@ -9,11 +9,11 @@ export function renderMeridianOverview() {
       <div class="hero-copy">
         <div class="meridian-bay-mark" aria-hidden="true">
           <img src="/meridian-checklist-icon.svg" alt="" />
-          <span>Readiness bay</span>
+          <span>Meridian Checklist</span>
         </div>
         <div class="eyebrow">Davis / trusted cohort only</div>
-        <h1 id="page-title">Scoped hybrid auto-close validation</h1>
-        <p>Hapag-Lloyd IDT Export Rail smoke checklist for confirming passive close behavior while keeping the broad passive close flag off.</p>
+        <h1 id="page-title">Hybrid auto-close smoke checklist</h1>
+        <p>Hapag-Lloyd IDT Export Rail readiness checklist for live Salesforce, widget, and admin-monitor evidence.</p>
       </div>
       <aside class="status-panel" aria-label="Feature flags">
         <div class="flag-row"><span>HYBRID_AUTO_CLOSE_LIVE</span><strong>true</strong></div>
