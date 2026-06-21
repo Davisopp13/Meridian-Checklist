@@ -1,22 +1,30 @@
 .meridian-port {
-  --meridian-panel: rgba(15, 23, 42, 0.9);
-  --meridian-panel-strong: rgba(12, 18, 31, 0.94);
-  --meridian-line: rgba(232, 84, 10, 0.25);
-  --meridian-line-strong: rgba(232, 84, 10, 0.58);
+  --meridian-panel: rgba(26, 26, 46, 0.92);
+  --meridian-panel-strong: rgba(34, 35, 58, 0.9);
+  --meridian-field: rgba(15, 17, 23, 0.72);
+  --meridian-blue: #003087;
+  --meridian-blue-soft: rgba(0, 48, 135, 0.36);
+  --meridian-line: rgba(255, 138, 40, 0.24);
+  --meridian-line-strong: rgba(232, 84, 10, 0.6);
   --meridian-amber: #e8540a;
+  --meridian-amber-hot: #ff8a28;
   --meridian-amber-soft: #fed7aa;
   --meridian-text: rgba(255, 247, 237, 0.92);
+  --meridian-muted: rgba(255, 237, 213, 0.68);
 
   position: relative;
   padding: 12px;
   border: 1px solid var(--meridian-line);
   border-radius: 8px;
+  color: var(--meridian-text);
+  font-family: "Segoe UI", Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
   background:
-    linear-gradient(rgba(232, 84, 10, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232, 84, 10, 0.028) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(9, 15, 27, 0.94));
-  background-size: 28px 28px, 28px 28px, auto;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), 0 22px 70px rgba(0, 0, 0, 0.28);
+    radial-gradient(circle at 12% -8%, rgba(232, 84, 10, 0.18), transparent 30%),
+    radial-gradient(circle at 88% 0%, rgba(0, 48, 135, 0.24), transparent 34%),
+    linear-gradient(135deg, #0f0f1e 0%, #111827 56%, #0f1117 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 22px 70px rgba(0, 0, 0, 0.34);
 }
 
 .meridian-port::before {
@@ -26,9 +34,9 @@
   content: "";
   border-radius: inherit;
   background:
-    linear-gradient(135deg, rgba(232, 84, 10, 0.12), transparent 20%),
-    linear-gradient(315deg, rgba(232, 84, 10, 0.06), transparent 24%);
-  opacity: 0.72;
+    linear-gradient(135deg, rgba(255, 138, 40, 0.16), transparent 18%),
+    linear-gradient(315deg, rgba(0, 48, 135, 0.16), transparent 28%);
+  opacity: 0.78;
 }
 
 .meridian-port > * {
@@ -44,12 +52,40 @@
 .meridian-port .decision-card {
   border-color: var(--meridian-line);
   background:
-    linear-gradient(135deg, rgba(232, 84, 10, 0.08), transparent 34%),
-    linear-gradient(180deg, var(--meridian-panel), rgba(15, 17, 23, 0.74));
+    linear-gradient(135deg, rgba(232, 84, 10, 0.08), transparent 30%),
+    linear-gradient(180deg, var(--meridian-panel), rgba(15, 17, 23, 0.82));
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 138, 40, 0.06);
 }
 
 .meridian-port .meridian-hero .hero-copy {
   border-left: 3px solid rgba(232, 84, 10, 0.78);
+}
+
+.meridian-port .hero h1,
+.meridian-port .record-head h2,
+.meridian-port .session-head h2,
+.meridian-port .section-title h2,
+.meridian-port .decision-card h2,
+.meridian-port .item-title {
+  color: #fff7ed;
+  letter-spacing: 0;
+}
+
+.meridian-port .hero h1 {
+  max-width: 720px;
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 0.98;
+}
+
+.meridian-port .hero p,
+.meridian-port .record-group li,
+.meridian-port .item-desc,
+.meridian-port .flag-note,
+.meridian-port .progress-meta,
+.meridian-port .decision-card p,
+.meridian-port .audio-empty,
+.meridian-port .audio-card {
+  color: var(--meridian-muted);
 }
 
 .meridian-bay-mark {
@@ -60,25 +96,30 @@
   margin-bottom: 12px;
   padding: 5px 10px 5px 6px;
   border: 1px solid rgba(232, 84, 10, 0.3);
-  border-radius: 999px;
-  background: rgba(88, 30, 8, 0.32);
+  border-radius: 7px;
+  background:
+    linear-gradient(180deg, rgba(232, 84, 10, 0.18), rgba(88, 30, 8, 0.26)),
+    rgba(15, 17, 23, 0.62);
   color: var(--meridian-amber-soft);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .meridian-bay-mark img {
   width: 24px;
   height: 24px;
+  filter: drop-shadow(0 8px 16px rgba(232, 84, 10, 0.26));
 }
 
 .meridian-port .eyebrow,
 .meridian-port .panel-label,
 .meridian-port .section-number,
 .meridian-port .decision-notes-label {
-  color: var(--meridian-amber);
+  color: var(--meridian-amber-hot);
+  font-family: inherit;
+  letter-spacing: 0.06em;
 }
 
 .meridian-port code {
@@ -89,7 +130,10 @@
 
 .meridian-port .section-nav {
   border-color: rgba(232, 84, 10, 0.24);
-  background: rgba(15, 23, 42, 0.9);
+  background:
+    linear-gradient(90deg, rgba(0, 48, 135, 0.14), transparent),
+    rgba(15, 17, 23, 0.74);
+  box-shadow: inset 0 1px 0 rgba(255, 138, 40, 0.04);
 }
 
 .meridian-port .section-link span,
@@ -100,8 +144,13 @@
 }
 
 .meridian-port .progress-fill {
-  background: linear-gradient(90deg, var(--meridian-amber), #60a5fa);
-  box-shadow: 0 0 24px rgba(232, 84, 10, 0.28);
+  background: linear-gradient(90deg, #b33d00, var(--meridian-amber), var(--meridian-amber-hot));
+  box-shadow: 0 0 24px rgba(232, 84, 10, 0.34);
+}
+
+.meridian-port .progress-track {
+  background: rgba(15, 17, 23, 0.76);
+  box-shadow: inset 0 0 0 1px rgba(255, 138, 40, 0.12);
 }
 
 .meridian-port .btn-primary,
@@ -116,6 +165,143 @@
 .meridian-port .record-group,
 .meridian-port .audio-empty,
 .meridian-port .audio-card {
-  border-color: rgba(232, 84, 10, 0.14);
-  background-color: rgba(9, 13, 24, 0.62);
+  border-color: rgba(255, 138, 40, 0.16);
+  background:
+    linear-gradient(180deg, rgba(34, 35, 58, 0.68), rgba(15, 17, 23, 0.72));
+}
+
+.meridian-port .record-group {
+  box-shadow: inset 0 1px 0 rgba(255, 138, 40, 0.04);
+}
+
+.meridian-port .run-field input,
+.meridian-port .item-field input,
+.meridian-port .item-field textarea,
+.meridian-port .audit-notes,
+.meridian-port .decision-notes {
+  border-color: rgba(255, 138, 40, 0.18);
+  background: rgba(15, 17, 23, 0.74);
+  color: #fff7ed;
+}
+
+.meridian-port .run-field input:focus,
+.meridian-port .item-field input:focus,
+.meridian-port .item-field textarea:focus,
+.meridian-port .audit-notes:focus,
+.meridian-port .decision-notes:focus {
+  border-color: rgba(255, 138, 40, 0.54);
+  box-shadow: 0 0 0 4px rgba(232, 84, 10, 0.14);
+}
+
+.meridian-port .audit-option,
+.meridian-port .decision-option {
+  color: #fff7ed;
+}
+
+.meridian-port .audit-option:hover,
+.meridian-port .decision-option:hover,
+.meridian-port .status-btn:hover {
+  border-color: rgba(255, 138, 40, 0.44);
+  background: rgba(232, 84, 10, 0.14);
+}
+
+.meridian-port .audit-option small,
+.meridian-port .decision-option small,
+.meridian-port .run-field span,
+.meridian-port .item-field span,
+.meridian-port .audit-notes-label,
+.meridian-port .item-meta,
+.meridian-port .audio-meta {
+  color: var(--meridian-muted);
+}
+
+.meridian-port .audit-option[aria-pressed="true"],
+.meridian-port .decision-option[aria-pressed="true"] {
+  border-color: rgba(255, 138, 40, 0.58);
+  background:
+    linear-gradient(135deg, rgba(232, 84, 10, 0.22), rgba(0, 48, 135, 0.16)),
+    rgba(26, 26, 46, 0.88);
+  box-shadow: inset 0 1px 0 rgba(255, 138, 40, 0.14), 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.meridian-port .audit-option.audit-ready[aria-pressed="true"],
+.meridian-port .decision-option.sel-keep[aria-pressed="true"] {
+  border-color: rgba(34, 197, 94, 0.36);
+}
+
+.meridian-port .audit-option.audit-hold[aria-pressed="true"],
+.meridian-port .decision-option.sel-rollback[aria-pressed="true"] {
+  border-color: rgba(239, 68, 68, 0.42);
+}
+
+.meridian-port .decision-option.sel-fix[aria-pressed="true"] {
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.meridian-port .status-btn {
+  border-color: rgba(255, 138, 40, 0.18);
+  background: rgba(15, 17, 23, 0.72);
+  color: var(--meridian-muted);
+}
+
+.meridian-port .status-btn[aria-pressed="true"] {
+  border-color: rgba(255, 138, 40, 0.54);
+  background: rgba(232, 84, 10, 0.18);
+  color: #fff7ed;
+}
+
+.meridian-port .record-status,
+.meridian-port .flag-row {
+  border-radius: 7px;
+}
+
+.meridian-port .flag-row {
+  border-color: rgba(34, 197, 94, 0.22);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.meridian-port .flag-row.critical {
+  border-color: rgba(232, 84, 10, 0.36);
+  background: rgba(232, 84, 10, 0.12);
+}
+
+.meridian-port .record-status {
+  border-color: rgba(232, 84, 10, 0.32);
+  background: rgba(232, 84, 10, 0.12);
+  color: var(--meridian-amber-soft);
+}
+
+.meridian-port .btn-secondary,
+.meridian-port .btn-audit,
+.meridian-port .audit-copy-btn {
+  border-color: rgba(255, 138, 40, 0.28);
+  background: rgba(232, 84, 10, 0.14);
+  color: #fff7ed;
+}
+
+.meridian-port .btn-secondary:hover,
+.meridian-port .btn-audit:hover,
+.meridian-port .audit-copy-btn:hover {
+  border-color: rgba(255, 138, 40, 0.48);
+  background: rgba(232, 84, 10, 0.22);
+}
+
+.meridian-port .scope-banner {
+  border-color: rgba(232, 84, 10, 0.34);
+  background:
+    linear-gradient(90deg, rgba(88, 30, 8, 0.82), rgba(26, 26, 46, 0.84));
+}
+
+.meridian-port .scope-kicker {
+  color: #ffb15f;
+}
+
+@media (max-width: 720px) {
+  .meridian-port {
+    padding: 8px;
+  }
+
+  .meridian-port .hero h1 {
+    font-size: clamp(31px, 13vw, 42px);
+  }
 }
