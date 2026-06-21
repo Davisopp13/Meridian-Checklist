@@ -49,25 +49,10 @@ let reports = loadReports();
 const audioUrls = new Map();
 let pwaEventsBound = false;
 
-function revealActiveView() {
-  window.requestAnimationFrame(() => {
-    const main = document.getElementById('top');
-    if (!main) return;
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const offset = window.matchMedia('(max-width: 860px)').matches ? 8 : 150;
-    const target = Math.max(0, main.getBoundingClientRect().top + window.scrollY - offset);
-    window.scrollTo({
-      top: target,
-      behavior: prefersReducedMotion ? 'auto' : 'smooth',
-    });
-  });
-}
-
-function setActiveView(view, options = {}) {
+function setActiveView(view) {
   activeView = GRID_NAV_ITEMS.some((item) => item.id === view) ? view : DEFAULT_VIEW;
   localStorage.setItem(GRID_KEYS.activeView, activeView);
   renderApp();
-  if (options.reveal) revealActiveView();
 }
 
 function setActivePort(portId) {
@@ -189,9 +174,11 @@ function shellStatus() {
 
 function renderApp() {
   const project = getActiveProject(activePortId);
+  const selectedProject = PROJECT_REGISTRY.find((entry) => entry.id === activePortId);
   document.getElementById('app').innerHTML = renderGridShell({
     activePortId,
     activeView,
+    activeModuleName: selectedProject?.name || '',
     content: renderActiveView(project),
     navItems: GRID_NAV_ITEMS,
     project,
@@ -532,7 +519,7 @@ function renderSettingsView() {
 
 function attachShellListeners() {
   document.querySelectorAll('[data-grid-view]').forEach((button) => {
-    button.addEventListener('click', () => setActiveView(button.dataset.gridView, { reveal: true }));
+    button.addEventListener('click', () => setActiveView(button.dataset.gridView));
   });
   document.querySelectorAll('[data-port-id]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -1061,6 +1048,8 @@ function updatePwaState(label) {
   if (!stateEl) return;
   stateEl.textContent = label;
   stateEl.classList.toggle('is-offline', !navigator.onLine);
+  const installButton = document.getElementById('btn-install');
+  if (installButton && label === 'Installed') installButton.hidden = true;
 }
 
 function makeAudioId() {
