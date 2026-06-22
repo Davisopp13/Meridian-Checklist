@@ -6,6 +6,11 @@ export const MERIDIAN_SECTIONS = [
     short: 'Setup',
     items: [
       { id: 'p1', text: 'Smoke environment or Vercel preview URL is open and recorded in Smoke Session.' },
+      { id: 'dv1', text: 'Deploy verification first (catches a stale deploy): HOST is set to the exact origin the bookmarklet NS_HOST points at - deployed meridian-hlag.com or the branch-preview URL - and the PR #7 deploy has finished.' },
+      { id: 'dv2', text: 'Live widget flag is hot: `curl -s "$HOST/ct-widget.js?cb=$(date +%s)" | grep -E "HYBRID_AUTO_CLOSE_LIVE = (true|false)"` returns `= true`.' },
+      { id: 'dv3', text: 'Live widget carries the pending-close buffer: `curl -s "$HOST/ct-widget.js?cb=$(date +%s)" | grep -c "pendingPassiveAutoClose"` returns a non-zero count (8 at PR #7 HEAD).' },
+      { id: 'dv4', text: 'Live relay allow-list includes the hybrid-access RPC: `curl -s "$HOST/meridian-relay.html?cb=$(date +%s)" | grep -c "widget_secure_trusted_cells"` returns 1.' },
+      { id: 'dv5', text: 'Containment + console clean: live `ct-widget.js` still shows `PASSIVE_CLOSE_LIVE = false`, and on widget launch the console shows NO `function not allowed: widget_secure_trusted_cells` and logs hybrid access enabled. If that error appears the relay did not redeploy - stop and redeploy.' },
       { id: 'p2', text: 'Hybrid trial access is detected for the scoped tester: `state.hybridAccessConfirmed === true` is visible via widget console log or monitor panel header.' },
       { id: 'p3', text: 'Broad non-hybrid bookmarklet remains manual-first; passive case-start remains off.' },
       { id: 'p4', text: 'Monitor panel loads without error - no red banners, no uncaught exceptions in browser console.' },
