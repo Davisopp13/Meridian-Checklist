@@ -1,10 +1,46 @@
 import { GRID_KEYS, LEGACY_MERIDIAN_KEY } from '../../grid/settings/storageKeys.js';
+import { MERIDIAN_SMOKE_LOG_ASSERTIONS } from './meridianChecklistData.js';
+
+function defaultSmokeLogRows() {
+  return MERIDIAN_SMOKE_LOG_ASSERTIONS.map((assertion) => ({
+    id: `PR7-A${assertion.id}`,
+    surface: 'app',
+    action: '',
+    expected: assertion.label,
+    observed: '',
+    result: 'NA',
+    writeLanded: 'N',
+    source: 'NA',
+    excluded: 'NA',
+    console: '',
+    evidence: '',
+    assertion: assertion.id,
+  }));
+}
+
+function defaultSmokeLog() {
+  return {
+    session: {
+      dateTime: new Date().toISOString(),
+      testerCohort: '',
+      liveDbRef: '',
+      gridDeploySha: '',
+      meridianPrBranchHeadSha: '',
+      passiveCloseLiveActual: '',
+      hybridAutoCloseLiveActual: '',
+      migration099Trigger: '',
+      cohortScopeAllowSet: '',
+    },
+    rows: defaultSmokeLogRows(),
+  };
+}
 
 export function defaultMeridianState() {
   return {
     items: {},
     audit: { verdict: 'not-run', notes: '' },
     run: { tester: '', environmentUrl: '' },
+    smokeLog: defaultSmokeLog(),
     decision: { verdict: null, notes: '' },
     savedAt: null,
   };
@@ -25,6 +61,14 @@ export function loadMeridianState() {
       items: parsed.items || defaults.items,
       audit: { ...defaults.audit, ...(parsed.audit || {}) },
       run: { ...defaults.run, ...(parsed.run || {}) },
+      smokeLog: {
+        ...defaults.smokeLog,
+        ...(parsed.smokeLog || {}),
+        session: { ...defaults.smokeLog.session, ...(parsed.smokeLog?.session || {}) },
+        rows: Array.isArray(parsed.smokeLog?.rows) && parsed.smokeLog.rows.length
+          ? parsed.smokeLog.rows
+          : defaults.smokeLog.rows,
+      },
       decision: { ...defaults.decision, ...(parsed.decision || {}) },
     };
   } catch {

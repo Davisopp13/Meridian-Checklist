@@ -3,7 +3,7 @@ import { MODULE_REGISTRY, getFallbackModule, getModule } from '../grid/moduleReg
 import { fetchGridReports, gridApiBaseLabel, isGridApiConfigured } from '../grid/cloudflare/gridApi.js';
 import { GRID_KEYS, GRID_STORAGE_KEYS, LEGACY_MERIDIAN_KEY } from '../grid/settings/storageKeys.js';
 import { exportGridData, importGridData, clearGridLocalData } from '../grid/settings/gridData.js';
-import { loadReports, clearReports } from '../grid/reports/reportsStorage.js';
+import { loadReports, saveReport, clearReports } from '../grid/reports/reportsStorage.js';
 import {
   clearAudioStore,
   deleteAudioBlob,
@@ -27,7 +27,7 @@ import {
   persistMeridianState,
   saveMeridianExport,
 } from '../ports/meridian/meridianStorage.js';
-import { buildMeridianExport } from '../ports/meridian/meridianExport.js';
+import { buildMeridianExport, buildMeridianSmokeLogExport } from '../ports/meridian/meridianExport.js';
 import {
   renderMeridianPortView as renderMeridianPortViewMarkup,
   renderMeridianSectionNav,
@@ -629,7 +629,80 @@ function attachMeridianListeners() {
     });
     autoResize(auditNotes);
   }
+  attachSmokeLogListeners();
   renderMeridianSections();
+}
+
+function ensureSmokeLog() {
+  if (!meridianState.smokeLog) meridianState.smokeLog = defaultMeridianState().smokeLog;
+  if (!meridianState.smokeLog.session) meridianState.smokeLog.session = defaultMeridianState().smokeLog.session;
+  if (!Array.isArray(meridianState.smokeLog.rows)) meridianState.smokeLog.rows = [];
+}
+
+function attachSmokeLogListeners() {
+  document.querySelectorAll('[data-smoke-session-field]').forEach((field) => {
+    field.addEventListener('input', () => {
+      ensureSmokeLog();
+      meridianState.smokeLog.session[field.dataset.smokeSessionField] = field.value;
+      persistMeridian();
+      if (field.tagName === 'TEXTAREA') autoResize(field);
+    });
+    if (field.tagName === 'TEXTAREA') autoResize(field);
+  });
+
+  document.querySelectorAll('[data-smoke-row-index]').forEach((rowEl) => {
+    const rowIndex = Number(rowEl.dataset.smokeRowIndex);
+    rowEl.querySelectorAll('[data-smoke-row-field]').forEach((field) => {
+      field.addEventListener('input', () => updateSmokeLogRowField(rowIndex, field));
+      field.addEventListener('change', () => updateSmokeLogRowField(rowIndex, field));
+      if (field.tagName === 'TEXTAREA') autoResize(field);
+    });
+  });
+
+  document.getElementById('btn-smoke-log-add-row')?.addEventListener('click', addSmokeLogRow);
+  document.getElementById('btn-smoke-log-copy')?.addEventListener('click', copySmokeLog);
+  document.getElementById('btn-smoke-log-save-report')?.addEventListener('click', saveSmokeLogReport);
+  document.querySelectorAll('[data-smoke-row-remove]').forEach((button) => {
+    button.addEventListener('click', () => removeSmokeLogRow(Number(button.closest('[data-smoke-row-index]')?.dataset.smokeRowIndex)));
+  });
+}
+
+function updateSmokeLogRowField(rowIndex, field) {
+  ensureSmokeLog();
+  const row = meridianState.smokeLog.rows[rowIndex];
+  if (!row) return;
+  row[field.dataset.smokeRowField] = field.value;
+  persistMeridian();
+  if (field.tagName === 'TEXTAREA') autoResize(field);
+}
+
+function addSmokeLogRow() {
+  ensureSmokeLog();
+  const next = meridianState.smokeLog.rows.length + 1;
+  meridianState.smokeLog.rows.push({
+    id: `PR7-${next}`,
+    surface: 'app',
+    action: '',
+    expected: '',
+    observed: '',
+    result: 'NA',
+    writeLanded: 'N',
+    source: 'NA',
+    excluded: 'NA',
+    console: '',
+    evidence: '',
+    assertion: '',
+  });
+  persistMeridian();
+  renderApp();
+}
+
+function removeSmokeLogRow(rowIndex) {
+  ensureSmokeLog();
+  if (!Number.isInteger(rowIndex) || !meridianState.smokeLog.rows[rowIndex]) return;
+  meridianState.smokeLog.rows.splice(rowIndex, 1);
+  persistMeridian();
+  renderApp();
 }
 
 function setExpandedMeridianSection(sectionId, { scroll = false } = {}) {
@@ -1062,6 +1135,33 @@ function exportSummary() {
   showToastMessage(`Export saved ${new Date(meridianExport.createdAt).toLocaleTimeString()}`);
   refreshCommandCards();
   refreshGridStatusBar();
+}
+
+function copySmokeLog() {
+  const markdown = buildMeridianSmokeLogExport({ state: meridianState });
+  copyToClipboard(markdown, 'Smoke log copied');
+}
+
+function saveSmokeLogReport() {
+  const markdown = buildMeridianSmokeLogExport({ state: meridianState });
+  const session = meridianState.smokeLog?.session || {};
+  const report = saveReport({
+    port: 'meridian',
+    type: 'smoke',
+    title: `Meridian PR #7 smoke log - ${session.dateTime || new Date().toISOString()}`,
+    body: markdown,
+    source: 'human',
+    metadata: {
+      smokeLog: true,
+      gridSurface: 'meridian-port',
+      meridianPr: 7,
+      gridDeploySha: session.gridDeploySha || '',
+      meridianPrBranchHeadSha: session.meridianPrBranchHeadSha || '',
+    },
+  });
+  reports = loadReports();
+  showToastMessage(`Smoke report saved ${new Date(report.createdAt).toLocaleTimeString()}`);
+  refreshCommandCards();
 }
 
 function exportGridJson() {

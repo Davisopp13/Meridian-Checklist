@@ -2,6 +2,7 @@ import './meridianStyles.css';
 import { renderSmokeSession } from './MeridianAudit.js';
 import { renderMeridianOverview } from './MeridianOverview.js';
 import { renderSmokeRecord } from './MeridianReports.js';
+import { renderMeridianSmokeLog } from './MeridianSmokeLog.js';
 import {
   renderMeridianSectionNav,
   renderMeridianSectionsMarkup,
@@ -14,6 +15,7 @@ export function renderMeridianPortView({ state, currentFilter }) {
       ${renderMeridianOverview()}
       ${renderSmokeRecord()}
       ${renderSmokeSession({ state })}
+      ${renderMeridianSmokeLog({ state })}
       ${renderProgressPanel({ currentFilter })}
       <div class="section-nav" id="section-nav" aria-label="Meridian checklist sections"></div>
       <div class="filter-empty" id="filter-empty" hidden>No checklist items match the current view.</div>

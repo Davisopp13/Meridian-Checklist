@@ -46,6 +46,7 @@
 .meridian-port .status-panel,
 .meridian-port .record-panel,
 .meridian-port .session-panel,
+.meridian-port .meridian-smoke-log-panel,
 .meridian-port .progress-panel,
 .meridian-port .section,
 .meridian-port .decision-card {
@@ -207,6 +208,8 @@
 .meridian-port .decision-option,
 .meridian-port .item-card,
 .meridian-port .record-group,
+.meridian-port .assertion-panel,
+.meridian-port .smoke-log-row,
 .meridian-port .audio-empty,
 .meridian-port .audio-card {
   border-color: rgba(255, 138, 40, 0.16);
@@ -219,6 +222,9 @@
 }
 
 .meridian-port .run-field input,
+.meridian-port .smoke-log-field input,
+.meridian-port .smoke-log-field select,
+.meridian-port .smoke-log-field textarea,
 .meridian-port .item-field input,
 .meridian-port .item-field textarea,
 .meridian-port .audit-notes,
@@ -229,6 +235,9 @@
 }
 
 .meridian-port .run-field input:focus,
+.meridian-port .smoke-log-field input:focus,
+.meridian-port .smoke-log-field select:focus,
+.meridian-port .smoke-log-field textarea:focus,
 .meridian-port .item-field input:focus,
 .meridian-port .item-field textarea:focus,
 .meridian-port .audit-notes:focus,
@@ -252,6 +261,8 @@
 .meridian-port .audit-option small,
 .meridian-port .decision-option small,
 .meridian-port .run-field span,
+.meridian-port .smoke-log-field span,
+.meridian-port .assertion-panel li,
 .meridian-port .item-field span,
 .meridian-port .audit-notes-label,
 .meridian-port .item-meta,

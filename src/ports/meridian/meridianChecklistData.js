@@ -118,6 +118,35 @@ export const MERIDIAN_RUN_FIELDS = [
   { key: 'environmentUrl', label: 'Environment URL', placeholder: 'Vercel preview or deployed URL' },
 ];
 
+export const MERIDIAN_SMOKE_LOG_SESSION_FIELDS = [
+  { key: 'dateTime', label: 'Date/time', placeholder: 'Smoke session timestamp' },
+  { key: 'testerCohort', label: 'Tester/cohort', placeholder: 'Davis / scoped tester cohort' },
+  { key: 'liveDbRef', label: 'Live DB ref', placeholder: 'Live database reference only; no secrets' },
+  { key: 'gridDeploySha', label: 'The Grid deploy SHA', placeholder: 'The Grid deployed commit SHA' },
+  { key: 'meridianPrBranchHeadSha', label: 'Meridian PR #7 branch / HEAD SHA', placeholder: 'branch-name / commit SHA' },
+  { key: 'passiveCloseLiveActual', label: 'PASSIVE_CLOSE_LIVE actual state', placeholder: 'false / true / unknown' },
+  { key: 'hybridAutoCloseLiveActual', label: 'HYBRID_AUTO_CLOSE_LIVE actual state', placeholder: 'false / true / unknown' },
+  { key: 'migration099Trigger', label: 'Migration 099 trigger present/enabled', placeholder: 'present + enabled / missing / disabled / unknown' },
+  { key: 'cohortScopeAllowSet', label: 'Cohort scope / allow-set summary', placeholder: 'Allow-set and cohort boundary observed during smoke', multiline: true },
+];
+
+export const MERIDIAN_SMOKE_LOG_ASSERTIONS = [
+  { id: '1', label: 'Kill-switch holds' },
+  { id: '2', label: 'Clean single close' },
+  { id: '3', label: 'Duplicate suppressed, not skipped' },
+  { id: '4', label: 'Reopen exemption' },
+  { id: '5', label: 'Fail-open on null identity' },
+  { id: '6', label: 'Manual path untouched' },
+  { id: '7', label: 'Metrics invisibility' },
+  { id: '8', label: 'Reconciliation' },
+];
+
+export const MERIDIAN_SMOKE_LOG_SURFACES = ['PiP', 'overlay', 'app'];
+export const MERIDIAN_SMOKE_LOG_RESULTS = ['PASS', 'FAIL', 'BLOCKED', 'NA'];
+export const MERIDIAN_SMOKE_LOG_WRITE_LANDED = ['Y', 'N'];
+export const MERIDIAN_SMOKE_LOG_SOURCES = ['passive_auto', 'hybrid_auto', 'manual-null', 'NA'];
+export const MERIDIAN_SMOKE_LOG_EXCLUDED = ['true', 'false', 'NA'];
+
 export const MERIDIAN_ITEM_FIELD_DEFS = [
   { key: 'caseNumber', label: 'Case #', placeholder: 'CT case number' },
   { key: 'evidenceLink', label: 'Evidence link', placeholder: 'Screenshot, admin, PR, or log link' },

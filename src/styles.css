@@ -843,6 +843,135 @@ code {
   line-height: 1.45;
 }
 
+.smoke-log-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.smoke-log-session-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.smoke-log-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.smoke-log-field.is-wide {
+  grid-column: 1 / -1;
+}
+
+.smoke-log-field span {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.smoke-log-field input,
+.smoke-log-field select,
+.smoke-log-field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-pri);
+  font-size: 12px;
+}
+
+.smoke-log-field input,
+.smoke-log-field select {
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.smoke-log-field textarea {
+  min-height: 58px;
+  padding: 8px 10px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.smoke-log-field input::placeholder,
+.smoke-log-field textarea::placeholder {
+  color: var(--text-dim);
+}
+
+.assertion-panel {
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(15, 17, 23, 0.46);
+}
+
+.assertion-panel h3 {
+  margin: 0 0 10px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.assertion-panel ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.assertion-panel li {
+  color: var(--text-sec);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.smoke-log-rows {
+  display: grid;
+  gap: 10px;
+}
+
+.smoke-log-row {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(15, 17, 23, 0.5);
+}
+
+.smoke-log-row-head {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.2fr) repeat(6, minmax(94px, 1fr)) auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.smoke-log-id input {
+  font-weight: 800;
+}
+
+.smoke-log-remove {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.smoke-log-row-body {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.smoke-log-row-body .smoke-log-field:nth-child(4),
+.smoke-log-row-body .smoke-log-field:nth-child(5) {
+  grid-column: span 3;
+}
+
 .progress-panel {
   padding: 18px;
   border-radius: 8px;
@@ -1843,8 +1972,17 @@ select {
 
   .run-fields,
   .audit-verdict-group,
-  .evidence-grid {
+  .evidence-grid,
+  .smoke-log-session-grid,
+  .assertion-panel ol,
+  .smoke-log-row-head,
+  .smoke-log-row-body {
     grid-template-columns: 1fr;
+  }
+
+  .smoke-log-row-body .smoke-log-field:nth-child(4),
+  .smoke-log-row-body .smoke-log-field:nth-child(5) {
+    grid-column: auto;
   }
 
   .session-head {
@@ -1861,7 +1999,9 @@ select {
 
   .audio-upload,
   .btn-audio-stop,
-  .btn-audio-remove {
+  .btn-audio-remove,
+  .smoke-log-actions .btn,
+  .smoke-log-remove {
     width: 100%;
   }
 

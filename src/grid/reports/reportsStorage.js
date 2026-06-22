@@ -13,13 +13,16 @@ export function persistReports(reports) {
   localStorage.setItem(GRID_KEYS.reports, JSON.stringify(reports));
 }
 
-export function saveReport({ port, title, body }) {
+export function saveReport({ port, type = 'general', title, body, source = 'human', metadata = {} }) {
   const reports = loadReports();
   const entry = {
     id: window.crypto?.randomUUID ? window.crypto.randomUUID() : `report-${Date.now()}`,
     port,
+    type,
     title,
     body,
+    source,
+    metadata,
     createdAt: new Date().toISOString(),
   };
   persistReports([entry, ...reports].slice(0, 30));
