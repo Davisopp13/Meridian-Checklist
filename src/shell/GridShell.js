@@ -21,7 +21,7 @@ export function renderGridShell({
   project,
   status,
 }) {
-  const moduleSuffix = activeModule?.name ? ` / ${esc(activeModule.name)}` : '';
+  const brandName = activeModule?.name ? esc(activeModule.name) : 'The Grid';
   const isMeridianModule = activeModuleId === 'meridian-port';
 
   return `
@@ -31,8 +31,8 @@ export function renderGridShell({
           <a class="brand grid-brand" href="#top" aria-label="The Grid command home">
             ${renderModuleMark(activeModule)}
             <span>
-              <span class="brand-name">The Grid</span>
-              <span class="brand-subtitle">Human command surface${moduleSuffix}</span>
+              <span class="brand-name">${brandName}</span>
+              <span class="brand-subtitle">Human command surface</span>
             </span>
           </a>
           <div class="header-meta" aria-label="Grid status">

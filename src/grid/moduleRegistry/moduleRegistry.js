@@ -1,7 +1,7 @@
 export const MODULE_REGISTRY = [
   {
     id: 'grid-home',
-    name: 'Grid Home',
+    name: 'The Grid',
     status: 'Shell',
     accent: 'cyan',
     iconType: 'grid',
