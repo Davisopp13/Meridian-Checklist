@@ -264,7 +264,7 @@ function renderCommandView(project) {
       </div>
       <aside class="status-panel" aria-label="Active port">
         <div class="flag-row"><span>Tracked Module</span><strong>${esc(project.name)}</strong></div>
-        <div class="flag-row critical"><span>Mode</span><strong>Local-first MVP</strong></div>
+        <div class="flag-row critical"><span>Mode</span><strong>Local-first shell</strong></div>
         <div class="flag-note">No Supabase writes, no Hermes bridge. Cloudflare report ingest is a guarded skeleton only.</div>
       </aside>
     </section>
@@ -543,7 +543,7 @@ function renderSettingsView() {
       <div class="hero-copy">
         <div class="eyebrow">Local-first controls</div>
         <h1 id="settings-title">Settings</h1>
-        <p>Export/import Grid data, inspect namespace keys, and clear local MVP state. No backend is involved.</p>
+        <p>Export/import Grid data, inspect namespace keys, and clear local-first state. No backend is involved.</p>
       </div>
       <aside class="status-panel">
         <div class="flag-row"><span>Storage</span><strong>localStorage + IndexedDB</strong></div>

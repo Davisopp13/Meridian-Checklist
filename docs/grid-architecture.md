@@ -50,9 +50,9 @@ Meridian rendering is split by operational concern:
 - `MeridianReports.js`
 - `meridianStyles.css`
 
-## Local-First MVP Storage
+## Local-First Storage
 
-The MVP has no backend and no Supabase writes. Data is stored locally using namespaced browser storage:
+The current Grid shell has no backend dependency and no Supabase writes. Data is stored locally using namespaced browser storage:
 
 - `grid:activePort`
 - `grid:activeModule`
@@ -70,7 +70,7 @@ Audio blobs are stored in IndexedDB. Metadata stays in localStorage so it can be
 
 ## Audio Inbox
 
-The Audio Inbox exists because Telegram media playback can chain or loop through old messages, and technical reports can get buried in chat. The Grid MVP supports manual/local intake only: paste a report, upload an audio file, or provide an audio URL.
+The Audio Inbox exists because Telegram media playback can chain or loop through old messages, and technical reports can get buried in chat. The current Grid shell supports manual/local intake: paste a report, upload an audio file, or provide an audio URL.
 
 A static PWA cannot receive live Tron messages automatically by itself. Future versions may add one of these ingress paths:
 
@@ -78,4 +78,4 @@ A static PWA cannot receive live Tron messages automatically by itself. Future v
 - local folder watcher for a local desktop mode, such as `~/tron-outbox/`
 - hosted file/audio URL ingestion
 
-Those are intentionally out of scope for the static MVP.
+Those are intentionally out of scope for the current static shell.

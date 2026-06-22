@@ -1070,6 +1070,12 @@ code {
   padding-bottom: 14px;
 }
 
+.meridian-port [hidden],
+.items[hidden],
+.decision-card[hidden] {
+  display: none !important;
+}
+
 .section-head {
   display: flex;
   align-items: flex-end;
